@@ -1,0 +1,26 @@
+nas:
+  path: /home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/        # Chemin du NAS monté localement
+
+retention:
+  keep: 3                            # Nombre de sauvegardes conservées par serveur
+
+servers:
+  - name: DietPiHole
+    ip: 192.168.0.202
+    user: dietpi
+    device: /dev/mmcblk0p1             # Carte SD PiHole
+
+  - name: raspberry-pi4
+    ip: 192.168.0.53
+    user: dietpi
+    device: /dev/mmcblk0             # Carte SD
+
+  - name: banana-pi
+    ip: 192.168.0.54
+    user: admin
+    device: /dev/mmcblk0             # Carte SD
+
+  - name: orange-pi5
+    ip: 192.168.0.55
+    user: dietpi
+    device: /dev/mmcblk1             # eMMC (vérifier avec --check avant la 1ère sauvegarde)
