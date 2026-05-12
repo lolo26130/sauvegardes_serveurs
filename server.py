@@ -1,6 +1,16 @@
 """
-SSH connection and disk imaging operations.
-Streams dd output directly to the NAS without storing on the Pi.
+Connexion SSH et création d'images disque.
+
+Ce module gère la connexion SSH vers les serveurs SBC et le streaming de
+l'image disque compressée (``dd | gzip``) directement vers le NAS, sans
+stockage intermédiaire sur le serveur source.
+
+Prérequis sur chaque serveur distant :
+
+- Accès SSH par clé publique (``BatchMode=yes`` — pas de mot de passe)
+- ``sudo dd`` sans mot de passe (ligne dans ``/etc/sudoers``) ::
+
+    pi ALL=(ALL) NOPASSWD: /usr/bin/dd
 """
 import logging
 import subprocess
@@ -17,6 +27,12 @@ SSH_OPTS = [
 
 
 def _ssh_cmd(server: dict, remote_cmd: str) -> list[str]:
+    """Construit la liste d'arguments ``ssh`` pour un serveur donné.
+
+    :param server: Dictionnaire de configuration du serveur (``ip``, ``user``, ``ssh_key`` optionnel).
+    :param remote_cmd: Commande shell à exécuter sur le serveur distant.
+    :returns: Liste d'arguments prête pour :func:`subprocess.run`.
+    """
     cmd = ["ssh"] + SSH_OPTS
     if key := server.get("ssh_key"):
         cmd += ["-i", key]
@@ -25,7 +41,15 @@ def _ssh_cmd(server: dict, remote_cmd: str) -> list[str]:
 
 
 def check_server(server: dict) -> bool:
-    """Verify SSH connectivity and list block devices on the server."""
+    """Vérifie la connectivité SSH et liste les périphériques bloc du serveur.
+
+    Exécute ``lsblk`` en distant et affiche le résultat dans les logs.
+    Permet de confirmer le nom du périphérique (ex. ``/dev/mmcblk0``)
+    avant la première sauvegarde.
+
+    :param server: Dictionnaire de configuration du serveur.
+    :returns: ``True`` si la connexion réussit, ``False`` sinon.
+    """
     name = server["name"]
     ip = server["ip"]
     log.info(f"[{name}] Vérification connexion SSH ({ip})...")
@@ -45,9 +69,20 @@ def check_server(server: dict) -> bool:
 
 
 def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
-    """
-    Image the server's disk device and stream it compressed to the NAS.
-    Returns the output file path on success, None on failure.
+    """Image le périphérique disque du serveur et le stream compressé vers le NAS.
+
+    Flux de données ::
+
+        [Serveur] dd if=/dev/mmcblk0 | gzip -c  ──SSH──►  [NAS] nom_YYYYMMDD_HHMMSS.img.gz
+
+    Aucun fichier temporaire n'est créé sur le serveur source.
+    Le fichier de sortie est supprimé automatiquement en cas d'erreur partielle.
+
+    :param server: Dictionnaire de configuration du serveur (``name``, ``ip``, ``user``, ``device``).
+    :param nas_path: Répertoire racine de stockage sur le NAS.
+    :param dry_run: Si ``True``, simule sans écrire aucun fichier.
+    :returns: Chemin du fichier ``.img.gz`` créé, ou ``None`` en cas d'échec.
+    :raises OSError: Si le NAS n'est pas accessible en écriture.
     """
     name = server["name"]
     device = server["device"]
@@ -57,7 +92,7 @@ def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
 
     # dd with progress sent to stderr (stays in terminal), stdout piped here
     # remote_cmd = f"sudo dd if={device} bs=4M 2>/dev/null | gzip -c"
-    remote_cmd = f"sudo dd if={device} bs=4M status=progress | gzip -c"  # avec barre de progression
+    remote_cmd = f"sudo dd if={device} bs=4M status=progress | gzip -c"  # avec data de progression
 
     cmd = _ssh_cmd(server, remote_cmd)
 

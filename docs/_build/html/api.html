@@ -1,0 +1,302 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="fr" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Référence API &mdash; Sauvegardes Serveurs</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/translations.js?v=e6b791cb"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Structure UML" href="uml.html" />
+    <link rel="prev" title="Notice d’utilisation" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Sauvegardes Serveurs
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Rechercher docs" aria-label="Rechercher docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Notice d’utilisation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Référence API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-backup">backup — Point d’entrée</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#backup.load_config"><code class="docutils literal notranslate"><span class="pre">load_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#backup.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#backup.setup_logging"><code class="docutils literal notranslate"><span class="pre">setup_logging()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-server">server — Connexion SSH et imagerie</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#server.backup_server"><code class="docutils literal notranslate"><span class="pre">backup_server()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#server.check_server"><code class="docutils literal notranslate"><span class="pre">check_server()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-storage">storage — Gestion du NAS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#storage.check_nas"><code class="docutils literal notranslate"><span class="pre">check_nas()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#storage.cleanup_old_backups"><code class="docutils literal notranslate"><span class="pre">cleanup_old_backups()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#storage.list_backups"><code class="docutils literal notranslate"><span class="pre">list_backups()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="uml.html">Structure UML</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Sauvegardes Serveurs</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Référence API</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/api.rst.txt" rel="nofollow"> Afficher la source de la page</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="reference-api">
+<h1>Référence API<a class="headerlink" href="#reference-api" title="Lien vers cette rubrique"></a></h1>
+<nav class="contents local" id="modules">
+<p class="topic-title">Modules</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#module-backup" id="id1">backup — Point d’entrée</a></p></li>
+<li><p><a class="reference internal" href="#module-server" id="id2">server — Connexion SSH et imagerie</a></p></li>
+<li><p><a class="reference internal" href="#module-storage" id="id3">storage — Gestion du NAS</a></p></li>
+</ul>
+</nav>
+<section id="module-backup">
+<span id="backup-point-d-entree"></span><h2><a class="toc-backref" href="#id1" role="doc-backlink">backup — Point d’entrée</a><a class="headerlink" href="#module-backup" title="Lien vers cette rubrique"></a></h2>
+<p>Sauvegarde des cartes SD/eMMC des serveurs SBC (Raspberry Pi, Banana Pi, Orange Pi).
+Chaque sauvegarde est un fichier .img.gz récupéré par dd via SSH.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="backup.load_config">
+<span class="sig-prename descclassname"><span class="pre">backup.</span></span><span class="sig-name descname"><span class="pre">load_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/backup.html#load_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#backup.load_config" title="Lien vers cette définition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span></p>
+</dd>
+<dt class="field-even">Paramètres<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(dans Python v3.14)"><em>str</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="backup.main">
+<span class="sig-prename descclassname"><span class="pre">backup.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/backup.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#backup.main" title="Lien vers cette définition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="backup.setup_logging">
+<span class="sig-prename descclassname"><span class="pre">backup.</span></span><span class="sig-name descname"><span class="pre">setup_logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/backup.html#setup_logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#backup.setup_logging" title="Lien vers cette définition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(dans Python v3.14)"><em>bool</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-server">
+<span id="server-connexion-ssh-et-imagerie"></span><h2><a class="toc-backref" href="#id2" role="doc-backlink">server — Connexion SSH et imagerie</a><a class="headerlink" href="#module-server" title="Lien vers cette rubrique"></a></h2>
+<p>Connexion SSH et création d’images disque.</p>
+<p>Ce module gère la connexion SSH vers les serveurs SBC et le streaming de
+l’image disque compressée (<code class="docutils literal notranslate"><span class="pre">dd</span> <span class="pre">|</span> <span class="pre">gzip</span></code>) directement vers le NAS, sans
+stockage intermédiaire sur le serveur source.</p>
+<p>Prérequis sur chaque serveur distant :</p>
+<ul>
+<li><p>Accès SSH par clé publique (<code class="docutils literal notranslate"><span class="pre">BatchMode=yes</span></code> — pas de mot de passe)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">dd</span></code> sans mot de passe (ligne dans <code class="docutils literal notranslate"><span class="pre">/etc/sudoers</span></code>)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pi</span> <span class="n">ALL</span><span class="o">=</span><span class="p">(</span><span class="n">ALL</span><span class="p">)</span> <span class="n">NOPASSWD</span><span class="p">:</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">dd</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<dl class="py function">
+<dt class="sig sig-object py" id="server.backup_server">
+<span class="sig-prename descclassname"><span class="pre">server.</span></span><span class="sig-name descname"><span class="pre">backup_server</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nas_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/server.html#backup_server"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#server.backup_server" title="Lien vers cette définition"></a></dt>
+<dd><p>Image le périphérique disque du serveur et le stream compressé vers le NAS.</p>
+<p>Flux de données</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[Serveur] dd if=/dev/mmcblk0 | gzip -c  ──SSH──►  [NAS] nom_YYYYMMDD_HHMMSS.img.gz
+</pre></div>
+</div>
+<p>Aucun fichier temporaire n’est créé sur le serveur source.
+Le fichier de sortie est supprimé automatiquement en cas d’erreur partielle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – Dictionnaire de configuration du serveur (<code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">ip</span></code>, <code class="docutils literal notranslate"><span class="pre">user</span></code>, <code class="docutils literal notranslate"><span class="pre">device</span></code>).</p></li>
+<li><p><strong>nas_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Répertoire racine de stockage sur le NAS.</p></li>
+<li><p><strong>dry_run</strong> – Si <code class="docutils literal notranslate"><span class="pre">True</span></code>, simule sans écrire aucun fichier.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(dans Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Chemin du fichier <code class="docutils literal notranslate"><span class="pre">.img.gz</span></code> créé, ou <code class="docutils literal notranslate"><span class="pre">None</span></code> en cas d’échec.</p>
+</dd>
+<dt class="field-even">Lève<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#OSError" title="(dans Python v3.14)"><strong>OSError</strong></a> – Si le NAS n’est pas accessible en écriture.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="server.check_server">
+<span class="sig-prename descclassname"><span class="pre">server.</span></span><span class="sig-name descname"><span class="pre">check_server</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/server.html#check_server"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#server.check_server" title="Lien vers cette définition"></a></dt>
+<dd><p>Vérifie la connectivité SSH et liste les périphériques bloc du serveur.</p>
+<p>Exécute <code class="docutils literal notranslate"><span class="pre">lsblk</span></code> en distant et affiche le résultat dans les logs.
+Permet de confirmer le nom du périphérique (ex. <code class="docutils literal notranslate"><span class="pre">/dev/mmcblk0</span></code>)
+avant la première sauvegarde.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>server</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – Dictionnaire de configuration du serveur.</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> si la connexion réussit, <code class="docutils literal notranslate"><span class="pre">False</span></code> sinon.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-storage">
+<span id="storage-gestion-du-nas"></span><h2><a class="toc-backref" href="#id3" role="doc-backlink">storage — Gestion du NAS</a><a class="headerlink" href="#module-storage" title="Lien vers cette rubrique"></a></h2>
+<p>Gestion du stockage NAS : vérification, rotation et inventaire.</p>
+<p>Ce module fournit les utilitaires de gestion du répertoire de destination
+sur le NAS : test d’accessibilité en écriture, rotation des anciennes
+sauvegardes et affichage de l’inventaire.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="storage.check_nas">
+<span class="sig-prename descclassname"><span class="pre">storage.</span></span><span class="sig-name descname"><span class="pre">check_nas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nas_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storage.html#check_nas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#storage.check_nas" title="Lien vers cette définition"></a></dt>
+<dd><p>Vérifie que le point de montage NAS existe et est accessible en écriture.</p>
+<p>Tente de créer puis supprimer un fichier temporaire <code class="docutils literal notranslate"><span class="pre">.write_test</span></code>
+dans le répertoire cible.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>nas_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Chemin du répertoire racine sur le NAS.</p>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> si le NAS est accessible en écriture, <code class="docutils literal notranslate"><span class="pre">False</span></code> sinon.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="storage.cleanup_old_backups">
+<span class="sig-prename descclassname"><span class="pre">storage.</span></span><span class="sig-name descname"><span class="pre">cleanup_old_backups</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storage.html#cleanup_old_backups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#storage.cleanup_old_backups" title="Lien vers cette définition"></a></dt>
+<dd><p>Supprime les sauvegardes excédentaires en ne conservant que les <em>N</em> plus récentes.</p>
+<p>Les fichiers sont triés par date de modification (<code class="docutils literal notranslate"><span class="pre">mtime</span></code>). Les plus
+anciens au-delà du quota <code class="docutils literal notranslate"><span class="pre">keep</span></code> sont supprimés définitivement.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server_dir</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Répertoire de sauvegardes d’un serveur spécifique.</p></li>
+<li><p><strong>keep</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Nombre de sauvegardes à conserver.</p></li>
+<li><p><strong>dry_run</strong> – Si <code class="docutils literal notranslate"><span class="pre">True</span></code>, liste les suppressions sans les effectuer.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="storage.list_backups">
+<span class="sig-prename descclassname"><span class="pre">storage.</span></span><span class="sig-name descname"><span class="pre">list_backups</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nas_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">servers</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storage.html#list_backups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#storage.list_backups" title="Lien vers cette définition"></a></dt>
+<dd><p>Affiche l’inventaire des sauvegardes existantes sur le NAS.</p>
+<p>Pour chaque serveur, liste les fichiers <code class="docutils literal notranslate"><span class="pre">.img.gz</span></code> triés du plus récent
+au plus ancien, avec leur taille et leur date de création.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nas_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Chemin du répertoire racine sur le NAS.</p></li>
+<li><p><strong>servers</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>]</span>) – Liste de dictionnaires de configuration des serveurs.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Pied de page">
+        <a href="usage.html" class="btn btn-neutral float-left" title="Notice d’utilisation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Précédent</a>
+        <a href="uml.html" class="btn btn-neutral float-right" title="Structure UML" accesskey="n" rel="next">Suivant <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Droits d'auteur .</p>
+  </div>
+
+  Compilé avec <a href="https://www.sphinx-doc.org/">Sphinx</a> en utilisant un
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">thème</a>
+    fourni par <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -11,7 +11,7 @@ Target servers: 192.168.0.53, 192.168.0.54, 192.168.0.55
 ## Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (ou utiliser uv run / uvx)
 pip install -r requirements.txt
 
 # Check SSH connectivity and list block devices on all servers
@@ -28,6 +28,18 @@ python backup.py --dry-run
 
 # List existing backups on the NAS
 python backup.py --list
+```
+
+```bash
+# Générer la doc Sphinx (HTML dans docs/_build/html/)
+uvx --with sphinx-rtd-theme --with sphinx-autodoc-typehints --with pyyaml \
+    --from sphinx sphinx-build -b html docs docs/_build/html
+
+# Régénérer les diagrammes UML (nécessite graphviz installé)
+uvx --from pylint pyreverse -o dot -p sauvegardes \
+    --output-directory docs/_static/uml backup.py server.py storage.py
+dot -Tpng docs/_static/uml/classes_sauvegardes.dot -o docs/_static/uml/classes_sauvegardes.png
+dot -Tpng docs/_static/uml/packages_sauvegardes.dot -o docs/_static/uml/packages_sauvegardes.png
 ```
 
 ## Architecture

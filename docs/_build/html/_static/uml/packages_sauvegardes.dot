@@ -1,0 +1,9 @@
+digraph "packages_sauvegardes" {
+rankdir=BT
+charset="utf-8"
+"backup" [color="black", label=<backup>, shape="box", style="solid"];
+"server" [color="black", label=<server>, shape="box", style="solid"];
+"storage" [color="black", label=<storage>, shape="box", style="solid"];
+"backup" -> "server" [arrowhead="open", arrowtail="none"];
+"backup" -> "storage" [arrowhead="open", arrowtail="none"];
+}

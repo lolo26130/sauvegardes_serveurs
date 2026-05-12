@@ -1,0 +1,79 @@
+digraph "sauvegardes_serveurs" {
+    rankdir=LR
+    charset="utf-8"
+    graph [fontname="Helvetica", fontsize=11, splines=ortho, nodesep=0.6]
+    node  [fontname="Helvetica", fontsize=10, shape=record, style="filled,rounded"]
+    edge  [fontname="Helvetica", fontsize=9]
+
+    // ── Modules ─────────────────────────────────────────────────────
+    subgraph cluster_backup {
+        label="backup.py"
+        fontname="Helvetica Bold"
+        fontsize=12
+        style="filled"
+        color="#2980b9"
+        fillcolor="#d6eaf8"
+
+        main        [label="{main()|Point d\'entrée CLI\lparse args → orchestre}", fillcolor="#aed6f1"]
+        load_config [label="{load_config(path)|Lit config.yml\l→ dict}", fillcolor="#aed6f1"]
+        setup_logging [label="{setup_logging(verbose)|Configure handlers\lSTDOUT + fichier log}", fillcolor="#aed6f1"]
+    }
+
+    subgraph cluster_server {
+        label="server.py"
+        fontname="Helvetica Bold"
+        fontsize=12
+        style="filled"
+        color="#27ae60"
+        fillcolor="#d5f5e3"
+
+        check_server  [label="{check_server(server)|SSH → lsblk\l→ bool}", fillcolor="#a9dfbf"]
+        backup_server [label="{backup_server(server, nas_path, dry_run)|SSH + dd | gzip\lstream → NAS\l→ Path | None}", fillcolor="#a9dfbf"]
+        _ssh_cmd      [label="{_ssh_cmd(server, remote_cmd)|Construit argv SSH\l→ list[str]}", fillcolor="#a9dfbf"]
+    }
+
+    subgraph cluster_storage {
+        label="storage.py"
+        fontname="Helvetica Bold"
+        fontsize=12
+        style="filled"
+        color="#8e44ad"
+        fillcolor="#e8daef"
+
+        check_nas    [label="{check_nas(nas_path)|Test écriture NAS\l→ bool}", fillcolor="#d2b4de"]
+        cleanup      [label="{cleanup_old_backups(server_dir, keep, dry_run)|Rotation : garde N plus récentes}", fillcolor="#d2b4de"]
+        list_backups [label="{list_backups(nas_path, servers)|Inventaire console\ldes .img.gz}", fillcolor="#d2b4de"]
+    }
+
+    subgraph cluster_extern {
+        label="Système / Réseau"
+        fontname="Helvetica Bold"
+        fontsize=12
+        style="dashed"
+        color="#7f8c8d"
+
+        ssh   [label="{ssh|OpenSSH client}", shape=parallelogram, fillcolor="#f2f3f4"]
+        dd    [label="{dd | gzip|Image disque compressée\nstreamée via SSH}", shape=parallelogram, fillcolor="#f2f3f4"]
+        nas   [label="{NAS|.img.gz stocké\nen /mnt/nas/...}", shape=cylinder, fillcolor="#fdfefe"]
+        yaml  [label="{config.yml|Paramètres serveurs\net rétention}", shape=note, fillcolor="#fef9e7"]
+    }
+
+    // ── Appels internes ──────────────────────────────────────────────
+    main -> load_config   [label="1. lit"]
+    main -> setup_logging [label="2. init"]
+    main -> check_nas     [label="3. pré-vol"]
+    main -> check_server  [label="--check"]
+    main -> backup_server [label="4. sauvegarde"]
+    main -> cleanup       [label="5. rotation"]
+    main -> list_backups  [label="--list"]
+
+    backup_server -> _ssh_cmd [label="construit cmd"]
+    check_server  -> _ssh_cmd [label="construit cmd"]
+
+    // ── Appels externes ──────────────────────────────────────────────
+    load_config  -> yaml  [style=dashed, arrowhead=open, label="parse"]
+    _ssh_cmd     -> ssh   [style=dashed, arrowhead=open, label="subprocess"]
+    backup_server -> dd   [style=dashed, arrowhead=open, label="remote pipe"]
+    dd           -> nas   [style=dashed, arrowhead=open, label="stream .img.gz"]
+    cleanup      -> nas   [style=dashed, arrowhead=open, label="unlink anciens"]
+}

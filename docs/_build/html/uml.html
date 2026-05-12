@@ -1,0 +1,157 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="fr" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Structure UML &mdash; Sauvegardes Serveurs</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/translations.js?v=e6b791cb"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="prev" title="Référence API" href="api.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Sauvegardes Serveurs
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Rechercher docs" aria-label="Rechercher docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Notice d’utilisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Référence API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Structure UML</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#diagramme-modules-et-appels-de-fonctions">Diagramme modules et appels de fonctions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#diagramme-de-dependances-entre-packages">Diagramme de dépendances entre packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#regenerer-les-diagrammes">Régénérer les diagrammes</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Sauvegardes Serveurs</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Structure UML</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/uml.rst.txt" rel="nofollow"> Afficher la source de la page</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="structure-uml">
+<h1>Structure UML<a class="headerlink" href="#structure-uml" title="Lien vers cette rubrique"></a></h1>
+<section id="diagramme-modules-et-appels-de-fonctions">
+<h2>Diagramme modules et appels de fonctions<a class="headerlink" href="#diagramme-modules-et-appels-de-fonctions" title="Lien vers cette rubrique"></a></h2>
+<p>Vue complète des modules, fonctions et de leurs interactions avec les
+ressources système (SSH, NAS, fichier de configuration).</p>
+<a class="reference internal image-reference" href="_images/modules_fonctions.png"><img alt="Diagramme modules et fonctions" class="align-center" src="_images/modules_fonctions.png" style="width: 100%;" />
+</a>
+<p><strong>Lecture du diagramme :</strong></p>
+<ul class="simple">
+<li><p><strong>Bleu</strong> — module <code class="docutils literal notranslate"><span class="pre">backup.py</span></code> (orchestrateur / point d’entrée CLI)</p></li>
+<li><p><strong>Vert</strong> — module <code class="docutils literal notranslate"><span class="pre">server.py</span></code> (connexion SSH, imagerie disque)</p></li>
+<li><p><strong>Violet</strong> — module <code class="docutils literal notranslate"><span class="pre">storage.py</span></code> (gestion NAS, rotation)</p></li>
+<li><p><strong>Gris pointillé</strong> — ressources externes (OpenSSH, <code class="docutils literal notranslate"><span class="pre">dd|gzip</span></code>, NAS, <code class="docutils literal notranslate"><span class="pre">config.yml</span></code>)</p></li>
+<li><p>Flèches pleines → appels entre fonctions</p></li>
+<li><p>Flèches pointillées → interactions avec les ressources système</p></li>
+</ul>
+</section>
+<section id="diagramme-de-dependances-entre-packages">
+<h2>Diagramme de dépendances entre packages<a class="headerlink" href="#diagramme-de-dependances-entre-packages" title="Lien vers cette rubrique"></a></h2>
+<p>Dépendances d’import entre les trois modules Python.</p>
+<a class="reference internal image-reference" href="_images/packages_sauvegardes.png"><img alt="Diagramme de packages" class="align-center" src="_images/packages_sauvegardes.png" style="width: 50%;" />
+</a>
+<p><code class="docutils literal notranslate"><span class="pre">backup</span></code> importe <code class="docutils literal notranslate"><span class="pre">server</span></code> et <code class="docutils literal notranslate"><span class="pre">storage</span></code> ; <code class="docutils literal notranslate"><span class="pre">server</span></code> et <code class="docutils literal notranslate"><span class="pre">storage</span></code>
+sont indépendants l’un de l’autre.</p>
+</section>
+<section id="regenerer-les-diagrammes">
+<h2>Régénérer les diagrammes<a class="headerlink" href="#regenerer-les-diagrammes" title="Lien vers cette rubrique"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Diagramme de packages (pyreverse + graphviz)</span>
+uvx<span class="w"> </span>--from<span class="w"> </span>pylint<span class="w"> </span>pyreverse<span class="w"> </span>-o<span class="w"> </span>dot<span class="w"> </span>-p<span class="w"> </span>sauvegardes<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-directory<span class="w"> </span>docs/_static/uml<span class="w"> </span>backup.py<span class="w"> </span>server.py<span class="w"> </span>storage.py
+dot<span class="w"> </span>-Tpng<span class="w"> </span>docs/_static/uml/packages_sauvegardes.dot<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-o<span class="w"> </span>docs/_static/uml/packages_sauvegardes.png
+
+<span class="c1"># Diagramme modules/fonctions (source : docs/_static/uml/modules_fonctions.dot)</span>
+dot<span class="w"> </span>-Tpng<span class="w"> </span>docs/_static/uml/modules_fonctions.dot<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-o<span class="w"> </span>docs/_static/uml/modules_fonctions.png
+
+<span class="c1"># Rebuild HTML</span>
+uvx<span class="w"> </span>--with<span class="w"> </span>sphinx-rtd-theme<span class="w"> </span>--with<span class="w"> </span>sphinx-autodoc-typehints<span class="w"> </span>--with<span class="w"> </span>pyyaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--from<span class="w"> </span>sphinx<span class="w"> </span>sphinx-build<span class="w"> </span>-b<span class="w"> </span>html<span class="w"> </span>docs<span class="w"> </span>docs/_build/html
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Pied de page">
+        <a href="api.html" class="btn btn-neutral float-left" title="Référence API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Précédent</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Droits d'auteur .</p>
+  </div>
+
+  Compilé avec <a href="https://www.sphinx-doc.org/">Sphinx</a> en utilisant un
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">thème</a>
+    fourni par <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

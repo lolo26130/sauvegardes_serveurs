@@ -1,0 +1,283 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="fr" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notice d’utilisation &mdash; Sauvegardes Serveurs</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7a28dfa3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/translations.js?v=e6b791cb"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Recherche" href="search.html" />
+    <link rel="next" title="Référence API" href="api.html" />
+    <link rel="prev" title="Sauvegardes Serveurs" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Sauvegardes Serveurs
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Rechercher docs" aria-label="Rechercher docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Notice d’utilisation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequis">Prérequis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#verification-initiale">Vérification initiale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lancer-les-sauvegardes">Lancer les sauvegardes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#consulter-les-sauvegardes-existantes">Consulter les sauvegardes existantes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#restaurer-une-image">Restaurer une image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#automatisation-cron">Automatisation (cron)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#durees-typiques">Durées typiques</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Référence API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uml.html">Structure UML</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Sauvegardes Serveurs</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Notice d’utilisation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.rst.txt" rel="nofollow"> Afficher la source de la page</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="notice-d-utilisation">
+<h1>Notice d’utilisation<a class="headerlink" href="#notice-d-utilisation" title="Lien vers cette rubrique"></a></h1>
+<section id="prerequis">
+<h2>Prérequis<a class="headerlink" href="#prerequis" title="Lien vers cette rubrique"></a></h2>
+<p><strong>Sur cette machine (poste de contrôle) :</strong></p>
+<ul class="simple">
+<li><p>Python ≥ 3.10</p></li>
+<li><p>Clé SSH configurée (<code class="docutils literal notranslate"><span class="pre">~/.ssh/id_rsa</span></code> ou <code class="docutils literal notranslate"><span class="pre">id_ed25519</span></code>)</p></li>
+<li><p>NAS monté en lecture/écriture (ex. <code class="docutils literal notranslate"><span class="pre">/home/laurent/Mounts/NAS_Vol2/...</span></code>)</p></li>
+</ul>
+<p><strong>Sur chaque serveur SBC :</strong></p>
+<p>Autoriser <code class="docutils literal notranslate"><span class="pre">dd</span></code> sans mot de passe via <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">visudo</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pi</span> <span class="n">ALL</span><span class="o">=</span><span class="p">(</span><span class="n">ALL</span><span class="p">)</span> <span class="n">NOPASSWD</span><span class="p">:</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">dd</span>
+</pre></div>
+</div>
+<p>Propager la clé publique une seule fois</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span><span class="o">-</span><span class="n">copy</span><span class="o">-</span><span class="nb">id</span> <span class="n">pi</span><span class="o">@</span><span class="mf">192.168.0.53</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Lien vers cette rubrique"></a></h2>
+<p>Éditer <code class="docutils literal notranslate"><span class="pre">config.yml</span></code> à la racine du projet :</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">nas</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/</span>
+
+<span class="nt">retention</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">keep</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">          </span><span class="c1"># sauvegardes conservées par serveur</span>
+
+<span class="nt">servers</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">raspberry-pi4</span>
+<span class="w">    </span><span class="nt">ip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.0.53</span>
+<span class="w">    </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dietpi</span>
+<span class="w">    </span><span class="nt">device</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/dev/mmcblk0</span>
+
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange-pi5</span>
+<span class="w">    </span><span class="nt">ip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.0.55</span>
+<span class="w">    </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dietpi</span>
+<span class="w">    </span><span class="nt">device</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/dev/mmcblk1</span><span class="w">   </span><span class="c1"># eMMC — vérifier avec --check</span>
+</pre></div>
+</div>
+<p>Clé SSH spécifique (optionnel) : ajouter <code class="docutils literal notranslate"><span class="pre">ssh_key:</span> <span class="pre">/chemin/vers/id_ed25519</span></code>
+dans l’entrée du serveur concerné.</p>
+</section>
+<section id="verification-initiale">
+<h2>Vérification initiale<a class="headerlink" href="#verification-initiale" title="Lien vers cette rubrique"></a></h2>
+<p>Avant toute sauvegarde, vérifier la connectivité SSH et identifier
+le périphérique correct (indispensable pour l’Orange Pi 5 en eMMC)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">backup</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">check</span>
+</pre></div>
+</div>
+<p>Exemple de sortie</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[raspberry-pi4] Connecté. Périphériques:
+NAME     SIZE TYPE MOUNTPOINT
+mmcblk0 29.7G disk
+mmcblk0boot0    4M disk
+mmcblk0boot1    4M disk
+
+[orange-pi5] Connecté. Périphériques:
+NAME     SIZE TYPE MOUNTPOINT
+mmcblk0   7G disk          ← carte SD (boot)
+mmcblk1  29G disk          ← eMMC (à sauvegarder)
+</pre></div>
+</div>
+</section>
+<section id="lancer-les-sauvegardes">
+<h2>Lancer les sauvegardes<a class="headerlink" href="#lancer-les-sauvegardes" title="Lien vers cette rubrique"></a></h2>
+<p><strong>Tous les serveurs :</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>backup.py
+</pre></div>
+</div>
+<p><strong>Un seul serveur (par nom ou IP) :</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>backup.py<span class="w"> </span>--server<span class="w"> </span>raspberry-pi4
+python<span class="w"> </span>backup.py<span class="w"> </span>--server<span class="w"> </span><span class="m">192</span>.168.0.53
+</pre></div>
+</div>
+<p><strong>Simulation sans écriture :</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>backup.py<span class="w"> </span>--dry-run
+</pre></div>
+</div>
+<p><strong>Mode verbeux (debug) :</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>backup.py<span class="w"> </span>-v
+</pre></div>
+</div>
+</section>
+<section id="consulter-les-sauvegardes-existantes">
+<h2>Consulter les sauvegardes existantes<a class="headerlink" href="#consulter-les-sauvegardes-existantes" title="Lien vers cette rubrique"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>backup.py<span class="w"> </span>--list
+</pre></div>
+</div>
+<p>Exemple de sortie</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Sauvegardes dans /home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/:
+
+  raspberry-pi4: 2 sauvegarde(s) — 18.4 GB total
+    2026-05-12 02:15  raspberry-pi4_20260512_021500.img.gz  (9.3 GB)
+    2026-05-11 23:00  raspberry-pi4_20260511_230000.img.gz  (9.1 GB)
+
+  orange-pi5: 1 sauvegarde(s) — 11.2 GB total
+    2026-05-12 04:45  orange-pi5_20260512_044500.img.gz  (11.2 GB)
+</pre></div>
+</div>
+</section>
+<section id="restaurer-une-image">
+<h2>Restaurer une image<a class="headerlink" href="#restaurer-une-image" title="Lien vers cette rubrique"></a></h2>
+<p>Pour réécrire l’image sur une nouvelle carte SD ou eMMC</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Décompresser et écrire sur /dev/sdX (adapter le périphérique)</span>
+<span class="n">gunzip</span> <span class="o">-</span><span class="n">c</span> <span class="n">raspberry</span><span class="o">-</span><span class="n">pi4_20260512_021500</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">gz</span> <span class="o">|</span> <span class="n">sudo</span> <span class="n">dd</span> <span class="n">of</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">sdX</span> <span class="n">bs</span><span class="o">=</span><span class="mi">4</span><span class="n">M</span> <span class="n">status</span><span class="o">=</span><span class="n">progress</span>
+</pre></div>
+</div>
+<p>Ou avec <strong>balenaEtcher</strong> / <strong>Raspberry Pi Imager</strong> en sélectionnant
+directement le fichier <code class="docutils literal notranslate"><span class="pre">.img.gz</span></code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Avertissement</p>
+<p>Vérifier soigneusement le périphérique de destination (<code class="docutils literal notranslate"><span class="pre">lsblk</span></code>)
+avant d’écrire — l’opération est irréversible.</p>
+</div>
+</section>
+<section id="automatisation-cron">
+<h2>Automatisation (cron)<a class="headerlink" href="#automatisation-cron" title="Lien vers cette rubrique"></a></h2>
+<p>Exemple pour lancer la sauvegarde tous les dimanches à 02h00</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">crontab</span> <span class="o">-</span><span class="n">e</span>
+
+<span class="mi">0</span> <span class="mi">2</span> <span class="o">*</span> <span class="o">*</span> <span class="mi">0</span>  <span class="n">cd</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">laurent</span><span class="o">/</span><span class="n">Documents</span><span class="o">/</span><span class="n">Python</span><span class="o">/</span><span class="n">sauvegardes_serveurs</span> <span class="o">&amp;&amp;</span> <span class="n">python</span> <span class="n">backup</span><span class="o">.</span><span class="n">py</span> <span class="o">&gt;&gt;</span> <span class="n">logs</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">log</span> <span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span>
+</pre></div>
+</div>
+<p>Les logs sont également écrits dans <code class="docutils literal notranslate"><span class="pre">logs/backup.log</span></code> à chaque exécution.</p>
+</section>
+<section id="durees-typiques">
+<h2>Durées typiques<a class="headerlink" href="#durees-typiques" title="Lien vers cette rubrique"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Serveur</p></th>
+<th class="head"><p>Taille</p></th>
+<th class="head"><p>Compressé</p></th>
+<th class="head"><p>Durée estimée</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Raspberry Pi 4</p></td>
+<td><p>32 GB</p></td>
+<td><p>~8–12 GB</p></td>
+<td><p>20–40 min</p></td>
+</tr>
+<tr class="row-odd"><td><p>Banana Pi</p></td>
+<td><p>32 GB</p></td>
+<td><p>~8–12 GB</p></td>
+<td><p>20–40 min</p></td>
+</tr>
+<tr class="row-even"><td><p>Orange Pi 5 eMMC</p></td>
+<td><p>32 GB</p></td>
+<td><p>~8–15 GB</p></td>
+<td><p>25–50 min</p></td>
+</tr>
+<tr class="row-odd"><td><p>DietPiHole</p></td>
+<td><p>16 GB</p></td>
+<td><p>~3–6 GB</p></td>
+<td><p>10–20 min</p></td>
+</tr>
+</tbody>
+</table>
+<p>La durée dépend de la vitesse réseau locale (100 Mbit/s à 1 Gbit/s)
+et du taux de compression des données.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Pied de page">
+        <a href="index.html" class="btn btn-neutral float-left" title="Sauvegardes Serveurs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Précédent</a>
+        <a href="api.html" class="btn btn-neutral float-right" title="Référence API" accesskey="n" rel="next">Suivant <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Droits d'auteur .</p>
+  </div>
+
+  Compilé avec <a href="https://www.sphinx-doc.org/">Sphinx</a> en utilisant un
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">thème</a>
+    fourni par <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
