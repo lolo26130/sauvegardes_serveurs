@@ -14,6 +14,7 @@ Prérequis sur chaque serveur distant :
 """
 import logging
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -23,8 +24,11 @@ SSH_OPTS = [
     "-o", "StrictHostKeyChecking=no",
     "-o", "ConnectTimeout=10",
     "-o", "BatchMode=yes",           # Fail immediately if no SSH key
+    "-o", "ServerAliveInterval=30",  # Ping toutes les 30s
+    "-o", "ServerAliveCountMax=4",   # Abandonne après 4 pings sans réponse (~2 min)
 ]
 
+TIMEOUT = 3600 * 5
 
 def _ssh_cmd(server: dict, remote_cmd: str) -> list[str]:
     """Construit la liste d'arguments ``ssh`` pour un serveur donné.
@@ -68,6 +72,62 @@ def check_server(server: dict) -> bool:
         return False
 
 
+def speed_test_server(server: dict, size_mb: int = 256) -> dict | None:
+    """Mesure le débit SSH et la taille du périphérique à sauvegarder.
+
+    Transfère ``size_mb`` Mo depuis ``/dev/zero`` du serveur distant vers
+    ``/dev/null`` local pour mesurer le débit réseau SSH, puis interroge
+    la taille réelle du périphérique via ``blockdev``.
+
+    :param server: Dictionnaire de configuration du serveur.
+    :param size_mb: Volume transféré pour le test de débit (défaut : 256 Mo).
+    :returns: Dictionnaire avec ``ssh_mbs`` (Mo/s), ``device_gb`` et
+              ``estimated_min`` (fourchette basse/haute), ou ``None`` si échec.
+    """
+    name = server["name"]
+    device = server["device"]
+
+    # Taille réelle du device
+    try:
+        r = subprocess.run(
+            _ssh_cmd(server, f"sudo blockdev --getsize64 {device}"),
+            capture_output=True, text=True, timeout=15,
+        )
+        device_bytes = int(r.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError) as e:
+        log.error(f"[{name}] Impossible de lire la taille du device: {e}")
+        return None
+
+    # Débit SSH : lecture /dev/zero distant → /dev/null local
+    cmd = _ssh_cmd(server, f"dd if=/dev/zero bs=1M count={size_mb} 2>/dev/null")
+    try:
+        start = time.monotonic()
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, timeout=120, check=True)
+        elapsed = time.monotonic() - start
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+        log.error(f"[{name}] Test débit SSH échoué: {e}")
+        return None
+
+    ssh_mbs = size_mb / elapsed
+    device_gb = device_bytes / (1024 ** 3)
+
+    # Estimation : compression 30 % (best) à 55 % (worst) pour image OS
+    compressed_best  = device_bytes * 0.30
+    compressed_worst = device_bytes * 0.55
+    speed_bps = ssh_mbs * 1024 * 1024
+    est_min_best  = compressed_best  / speed_bps / 60
+    est_min_worst = compressed_worst / speed_bps / 60
+
+    return {
+        "name": name,
+        "device": device,
+        "device_gb": device_gb,
+        "ssh_mbs": ssh_mbs,
+        "est_min_best": est_min_best,
+        "est_min_worst": est_min_worst,
+    }
+
+
 def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
     """Image le périphérique disque du serveur et le stream compressé vers le NAS.
 
@@ -86,13 +146,16 @@ def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
     """
     name = server["name"]
     device = server["device"]
+    # lz4 : compression ~10x plus rapide que gzip, ratio légèrement inférieur
+    compressor = server.get("compressor", "gzip")
+    ext = "lz4" if compressor == "lz4" else "gz"
+    compress_cmd = "lz4 -c" if compressor == "lz4" else "gzip -c"
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     server_dir = nas_path / name
-    output_file = server_dir / f"{name}_{timestamp}.img.gz"
+    output_file = server_dir / f"{name}_{timestamp}.img.{ext}"
 
-    # dd with progress sent to stderr (stays in terminal), stdout piped here
-    # remote_cmd = f"sudo dd if={device} bs=4M 2>/dev/null | gzip -c"
-    remote_cmd = f"sudo dd if={device} bs=4M status=progress | gzip -c"  # avec data de progression
+    remote_cmd = f"sudo dd if={device} bs=4M status=progress | {compress_cmd}"
 
     cmd = _ssh_cmd(server, remote_cmd)
 
@@ -107,7 +170,7 @@ def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
     log.info(f"[{name}] Transfert en cours (peut durer 15-60 min selon la taille)...")
     try:
         with open(output_file, "wb") as f:
-            proc = subprocess.run(cmd, stdout=f, timeout=7200)  # 2h max
+            proc = subprocess.run(cmd, stdout=f, timeout=TIMEOUT)  #  max
 
         if proc.returncode != 0:
             log.error(f"[{name}] dd/SSH a retourné le code {proc.returncode}")
@@ -119,7 +182,7 @@ def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
         return output_file
 
     except subprocess.TimeoutExpired:
-        log.error(f"[{name}] Timeout dépassé (2h)")
+        log.error(f"[{name}] Timeout dépassé ({TIMEOUT/3600} h)")
         output_file.unlink(missing_ok=True)
         return None
     except OSError as e:

@@ -15,8 +15,8 @@ from pathlib import Path
 
 import yaml
 
-from server import backup_server, check_server
-from storage import check_nas, cleanup_old_backups, list_backups
+from server import backup_server, check_server, speed_test_server
+from storage import check_nas, cleanup_old_backups, list_backups, speed_test_nas
 
 
 def setup_logging(verbose: bool):
@@ -56,6 +56,7 @@ Exemples:
     parser.add_argument("--server", metavar="NOM_OU_IP", help="Ne traiter qu'un seul serveur")
     parser.add_argument("--check", action="store_true", help="Vérifier la connectivité SSH uniquement")
     parser.add_argument("--list", action="store_true", help="Lister les sauvegardes existantes")
+    parser.add_argument("--speed-test", action="store_true", help="Mesurer débit SSH + NAS et estimer la durée")
     parser.add_argument("--dry-run", action="store_true", help="Simuler sans écrire")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -84,9 +85,41 @@ Exemples:
         log.info(f"{ok}/{len(servers)} serveur(s) accessibles")
         return 0 if ok == len(servers) else 1
 
-    if not args.dry_run and not check_nas(nas_path):
-        log.error("Abandon: NAS inaccessible")
-        return 1
+    if args.speed_test:
+        nas_mbs = speed_test_nas(nas_path)
+        if nas_mbs:
+            log.info(f"NAS écriture : {nas_mbs:.1f} Mo/s")
+        print()
+        all_ok = True
+        for server in servers:
+            result = speed_test_server(server)
+            if not result:
+                all_ok = False
+                continue
+            bottleneck = min(result["ssh_mbs"], nas_mbs or result["ssh_mbs"])
+            # Recalcule l'estimation avec le vrai goulot d'étranglement
+            device_bytes = result["device_gb"] * (1024 ** 3)
+            est_best  = device_bytes * 0.30 / (bottleneck * 1024 * 1024) / 60
+            est_worst = device_bytes * 0.55 / (bottleneck * 1024 * 1024) / 60
+            log.info(
+                f"[{result['name']}] {result['device']}  "
+                f"{result['device_gb']:.1f} GB  |  "
+                f"SSH {result['ssh_mbs']:.1f} Mo/s  |  "
+                f"durée estimée {est_best:.0f}–{est_worst:.0f} min "
+                f"(goulot: {'SSH' if result['ssh_mbs'] <= (nas_mbs or 9999) else 'NAS'})"
+            )
+        return 0 if all_ok else 1
+
+    if not check_nas(nas_path):
+        if args.dry_run:
+            log.warning("NAS inaccessible (dry-run: poursuite quand même)")
+        else:
+            log.error("Abandon: NAS inaccessible")
+            return 1
+
+    if args.dry_run:
+        results = [check_server(s) for s in servers]
+        log.info(f"SSH: {sum(results)}/{len(servers)} serveur(s) accessibles")
 
     success = 0
     for server in servers:

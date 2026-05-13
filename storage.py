@@ -6,6 +6,8 @@ sur le NAS : test d'accessibilité en écriture, rotation des anciennes
 sauvegardes et affichage de l'inventaire.
 """
 import logging
+import os
+import time
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -44,7 +46,7 @@ def cleanup_old_backups(server_dir: Path, keep: int, dry_run=False):
     :param dry_run: Si ``True``, liste les suppressions sans les effectuer.
     """
     backups = sorted(
-        server_dir.glob("*.img.gz"),
+        [*server_dir.glob("*.img.gz"), *server_dir.glob("*.img.lz4")],
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -59,6 +61,34 @@ def cleanup_old_backups(server_dir: Path, keep: int, dry_run=False):
             backup.unlink()
 
 
+def speed_test_nas(nas_path: Path, size_mb: int = 256) -> float | None:
+    """Mesure la vitesse d'écriture séquentielle sur le NAS.
+
+    Écrit ``size_mb`` Mo de zéros en blocs de 1 Mo avec fsync final,
+    puis supprime le fichier de test.
+
+    :param nas_path: Répertoire racine du NAS.
+    :param size_mb: Volume de données à écrire en Mo (défaut : 256).
+    :returns: Débit en Mo/s, ou ``None`` si le NAS est inaccessible.
+    """
+    test_file = nas_path / ".speed_test_write"
+    chunk = b"\x00" * (1024 * 1024)
+    try:
+        start = time.monotonic()
+        with open(test_file, "wb") as f:
+            for _ in range(size_mb):
+                f.write(chunk)
+            f.flush()
+            os.fsync(f.fileno())
+        elapsed = time.monotonic() - start
+        return size_mb / elapsed
+    except OSError as e:
+        log.error(f"Speed test NAS impossible: {e}")
+        return None
+    finally:
+        test_file.unlink(missing_ok=True)
+
+
 def list_backups(nas_path: Path, servers: list[dict]):
     """Affiche l'inventaire des sauvegardes existantes sur le NAS.
 
@@ -71,7 +101,11 @@ def list_backups(nas_path: Path, servers: list[dict]):
     print(f"\nSauvegardes dans {nas_path}:\n")
     for server in servers:
         server_dir = nas_path / server["name"]
-        backups = sorted(server_dir.glob("*.img.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+        backups = sorted(
+            [*server_dir.glob("*.img.gz"), *server_dir.glob("*.img.lz4")],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
         if not backups:
             print(f"  {server['name']}: aucune sauvegarde")
             continue
