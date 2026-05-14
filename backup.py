@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from server import backup_server, check_server, speed_test_server
+from server import backup_server, check_server, speed_test_server, start_backup_tmux, tmux_status
 from storage import check_nas, cleanup_old_backups, list_backups, speed_test_nas
 
 
@@ -57,6 +57,8 @@ Exemples:
     parser.add_argument("--check", action="store_true", help="Vérifier la connectivité SSH uniquement")
     parser.add_argument("--list", action="store_true", help="Lister les sauvegardes existantes")
     parser.add_argument("--speed-test", action="store_true", help="Mesurer débit SSH + NAS et estimer la durée")
+    parser.add_argument("--tmux", action="store_true", help="Lancer la sauvegarde dans tmux sur le Pi (résistant aux coupures PC)")
+    parser.add_argument("--status", action="store_true", help="État des sessions tmux de sauvegarde en cours")
     parser.add_argument("--dry-run", action="store_true", help="Simuler sans écrire")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -109,6 +111,36 @@ Exemples:
                 f"(goulot: {'SSH' if result['ssh_mbs'] <= (nas_mbs or 9999) else 'NAS'})"
             )
         return 0 if all_ok else 1
+
+    remote_nas = config["nas"].get("remote_path", "")
+
+    if args.status:
+        if not remote_nas:
+            log.error("'nas.remote_path' manquant dans config.yml (requis pour --status)")
+            return 1
+        for server in servers:
+            s = tmux_status(server, remote_nas)
+            if s["done"]:
+                verdict = "OK" if s["exit_code"] == 0 else f"ERREUR (code {s['exit_code']})"
+                log.info(f"[{s['name']}] Terminé — {verdict}  {s['latest']}")
+            elif s["running"]:
+                log.info(f"[{s['name']}] En cours…  {s['latest']}")
+            else:
+                log.info(f"[{s['name']}] Aucune session active")
+        return 0
+
+    if args.tmux:
+        if not remote_nas:
+            log.error("'nas.remote_path' manquant dans config.yml (requis pour --tmux)")
+            return 1
+        success = 0
+        for server in servers:
+            session = start_backup_tmux(server, remote_nas, dry_run=args.dry_run)
+            if session:
+                success += 1
+        log.info(f"{success}/{len(servers)} session(s) tmux démarrée(s)")
+        log.info(f"Suivre l'état : python backup.py --status")
+        return 0 if success == len(servers) else 1
 
     if not check_nas(nas_path):
         if args.dry_run:

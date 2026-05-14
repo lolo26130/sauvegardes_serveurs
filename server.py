@@ -28,7 +28,7 @@ SSH_OPTS = [
     "-o", "ServerAliveCountMax=4",   # Abandonne après 4 pings sans réponse (~2 min)
 ]
 
-TIMEOUT = 3600 * 5
+TIMEOUT = 3600 * 20
 
 def _ssh_cmd(server: dict, remote_cmd: str) -> list[str]:
     """Construit la liste d'arguments ``ssh`` pour un serveur donné.
@@ -126,6 +126,108 @@ def speed_test_server(server: dict, size_mb: int = 256) -> dict | None:
         "est_min_best": est_min_best,
         "est_min_worst": est_min_worst,
     }
+
+
+def _tmux_session_name(server: dict) -> str:
+    return f"bkp_{server['name']}"
+
+
+def start_backup_tmux(server: dict, remote_nas: str, dry_run=False) -> str | None:
+    """Lance la sauvegarde dans une session tmux détachée sur le serveur.
+
+    Le flux est entièrement local au Pi : ``dd | compressor > NAS``.
+    La connexion SSH du PC peut être interrompue sans affecter la sauvegarde.
+    Un fichier ``<nom>_<ts>.done`` (contenant le code retour) est créé à la fin.
+
+    Prérequis supplémentaire sur le Pi :
+
+    - NAS monté en écriture sur ``remote_nas`` (ex. via ``/etc/fstab`` SMB/NFS)
+
+    :param server: Dictionnaire de configuration du serveur.
+    :param remote_nas: Chemin du NAS tel que monté sur le Pi.
+    :param dry_run: Si ``True``, affiche la commande sans l'exécuter.
+    :returns: Nom de la session tmux, ou ``None`` en cas d'échec.
+    """
+    name = server["name"]
+    device = server["device"]
+    compressor = server.get("compressor", "gzip")
+    ext = "lz4" if compressor == "lz4" else "gz"
+    compress_cmd = "lz4 -c" if compressor == "lz4" else "gzip -c"
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    remote_dir = f"{remote_nas}/{name}"
+    output_file = f"{remote_dir}/{name}_{timestamp}.img.{ext}"
+    done_file = f"{remote_dir}/{name}_{timestamp}.done"
+    log_file = f"{remote_dir}/{name}_{timestamp}.ddlog"
+
+    session = _tmux_session_name(server)
+
+    # dd stderr (progression) → log_file ; code retour → done_file
+    remote_cmd = (
+        f"mkdir -p {remote_dir} && "
+        f"sudo dd if={device} bs=4M 2>{log_file} | {compress_cmd} > {output_file} ; "
+        f"echo $? > {done_file}"
+    )
+    tmux_cmd = f"tmux new-session -d -s {session} '{remote_cmd}'"
+
+    log.info(f"[{name}] Mode tmux — {device} → {output_file}")
+
+    if dry_run:
+        log.info(f"[{name}] [DRY-RUN] {tmux_cmd}")
+        return session
+
+    # Tuer une éventuelle session fantôme du même nom
+    subprocess.run(_ssh_cmd(server, f"tmux kill-session -t {session} 2>/dev/null"), timeout=10)
+
+    result = subprocess.run(_ssh_cmd(server, tmux_cmd), capture_output=True, timeout=15)
+    if result.returncode != 0:
+        log.error(f"[{name}] Échec création session tmux: {result.stderr.strip()}")
+        return None
+
+    log.info(f"[{name}] Session '{session}' démarrée.")
+    log.info(f"[{name}] Suivi interactif : ssh {server.get('user','pi')}@{server['ip']} 'tmux attach -t {session}'")
+    return session
+
+
+def tmux_status(server: dict, remote_nas: str) -> dict:
+    """Retourne l'état de la session tmux de sauvegarde.
+
+    Vérifie si la session est active, et si un fichier ``.done`` existe
+    (indiquant la fin de la sauvegarde et son code retour).
+
+    :param server: Dictionnaire de configuration du serveur.
+    :param remote_nas: Chemin du NAS tel que monté sur le Pi.
+    :returns: Dictionnaire avec les clés ``running`` (bool), ``done`` (bool),
+              ``exit_code`` (int|None), ``files`` (liste des ``.img.*`` créés).
+    """
+    name = server["name"]
+    session = _tmux_session_name(server)
+    remote_dir = f"{remote_nas}/{name}"
+
+    # Session toujours active ?
+    r = subprocess.run(
+        _ssh_cmd(server, f"tmux has-session -t {session} 2>/dev/null"),
+        capture_output=True, timeout=10,
+    )
+    running = r.returncode == 0
+
+    # Fichier .done présent ?
+    r2 = subprocess.run(
+        _ssh_cmd(server, f"cat {remote_dir}/*.done 2>/dev/null || true"),
+        capture_output=True, text=True, timeout=10,
+    )
+    done_content = r2.stdout.strip()
+    done = bool(done_content)
+    exit_code = int(done_content) if done_content.isdigit() else None
+
+    # Taille du dernier fichier image en cours
+    r3 = subprocess.run(
+        _ssh_cmd(server, f"ls -lh {remote_dir}/*.img.* 2>/dev/null | tail -1 || true"),
+        capture_output=True, text=True, timeout=10,
+    )
+    latest = r3.stdout.strip()
+
+    return {"name": name, "running": running, "done": done, "exit_code": exit_code, "latest": latest}
 
 
 def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:

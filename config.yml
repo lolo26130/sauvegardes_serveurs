@@ -1,5 +1,6 @@
 nas:
-  path: /home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/        # Chemin du NAS monté localement
+  path: /home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/        # Chemin du NAS monté sur ce PC
+  remote_path: /mnt/nas/sauvegardes                                     # Chemin du NAS monté sur les Pi (mode tmux)
 
 retention:
   keep: 3                            # Nombre de sauvegardes conservées par serveur
