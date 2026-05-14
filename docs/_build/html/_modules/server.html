@@ -88,6 +88,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -97,8 +98,11 @@
     <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;StrictHostKeyChecking=no&quot;</span><span class="p">,</span>
     <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;ConnectTimeout=10&quot;</span><span class="p">,</span>
     <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;BatchMode=yes&quot;</span><span class="p">,</span>           <span class="c1"># Fail immediately if no SSH key</span>
+    <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;ServerAliveInterval=30&quot;</span><span class="p">,</span>  <span class="c1"># Ping toutes les 30s</span>
+    <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;ServerAliveCountMax=4&quot;</span><span class="p">,</span>   <span class="c1"># Abandonne après 4 pings sans réponse (~2 min)</span>
 <span class="p">]</span>
 
+<span class="n">TIMEOUT</span> <span class="o">=</span> <span class="mi">3600</span> <span class="o">*</span> <span class="mi">20</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">remote_cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Construit la liste d&#39;arguments ``ssh`` pour un serveur donné.</span>
@@ -145,6 +149,173 @@
 
 
 
+<div class="viewcode-block" id="speed_test_server">
+<a class="viewcode-back" href="../api.html#server.speed_test_server">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">speed_test_server</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">size_mb</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mesure le débit SSH et la taille du périphérique à sauvegarder.</span>
+
+<span class="sd">    Transfère ``size_mb`` Mo depuis ``/dev/zero`` du serveur distant vers</span>
+<span class="sd">    ``/dev/null`` local pour mesurer le débit réseau SSH, puis interroge</span>
+<span class="sd">    la taille réelle du périphérique via ``blockdev``.</span>
+
+<span class="sd">    :param server: Dictionnaire de configuration du serveur.</span>
+<span class="sd">    :param size_mb: Volume transféré pour le test de débit (défaut : 256 Mo).</span>
+<span class="sd">    :returns: Dictionnaire avec ``ssh_mbs`` (Mo/s), ``device_gb`` et</span>
+<span class="sd">              ``estimated_min`` (fourchette basse/haute), ou ``None`` si échec.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;device&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Taille réelle du device</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;sudo blockdev --getsize64 </span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">device_bytes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Impossible de lire la taille du device: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Débit SSH : lecture /dev/zero distant → /dev/null local</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;dd if=/dev/zero bs=1M count=</span><span class="si">{</span><span class="n">size_mb</span><span class="si">}</span><span class="s2"> 2&gt;/dev/null&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">,</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Test débit SSH échoué: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">ssh_mbs</span> <span class="o">=</span> <span class="n">size_mb</span> <span class="o">/</span> <span class="n">elapsed</span>
+    <span class="n">device_gb</span> <span class="o">=</span> <span class="n">device_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># Estimation : compression 30 % (best) à 55 % (worst) pour image OS</span>
+    <span class="n">compressed_best</span>  <span class="o">=</span> <span class="n">device_bytes</span> <span class="o">*</span> <span class="mf">0.30</span>
+    <span class="n">compressed_worst</span> <span class="o">=</span> <span class="n">device_bytes</span> <span class="o">*</span> <span class="mf">0.55</span>
+    <span class="n">speed_bps</span> <span class="o">=</span> <span class="n">ssh_mbs</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+    <span class="n">est_min_best</span>  <span class="o">=</span> <span class="n">compressed_best</span>  <span class="o">/</span> <span class="n">speed_bps</span> <span class="o">/</span> <span class="mi">60</span>
+    <span class="n">est_min_worst</span> <span class="o">=</span> <span class="n">compressed_worst</span> <span class="o">/</span> <span class="n">speed_bps</span> <span class="o">/</span> <span class="mi">60</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+        <span class="s2">&quot;device&quot;</span><span class="p">:</span> <span class="n">device</span><span class="p">,</span>
+        <span class="s2">&quot;device_gb&quot;</span><span class="p">:</span> <span class="n">device_gb</span><span class="p">,</span>
+        <span class="s2">&quot;ssh_mbs&quot;</span><span class="p">:</span> <span class="n">ssh_mbs</span><span class="p">,</span>
+        <span class="s2">&quot;est_min_best&quot;</span><span class="p">:</span> <span class="n">est_min_best</span><span class="p">,</span>
+        <span class="s2">&quot;est_min_worst&quot;</span><span class="p">:</span> <span class="n">est_min_worst</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_tmux_session_name</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;bkp_</span><span class="si">{</span><span class="n">server</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="start_backup_tmux">
+<a class="viewcode-back" href="../api.html#server.start_backup_tmux">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">start_backup_tmux</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">remote_nas</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Lance la sauvegarde dans une session tmux détachée sur le serveur.</span>
+
+<span class="sd">    Le flux est entièrement local au Pi : ``dd | compressor &gt; NAS``.</span>
+<span class="sd">    La connexion SSH du PC peut être interrompue sans affecter la sauvegarde.</span>
+<span class="sd">    Un fichier ``&lt;nom&gt;_&lt;ts&gt;.done`` (contenant le code retour) est créé à la fin.</span>
+
+<span class="sd">    Prérequis supplémentaire sur le Pi :</span>
+
+<span class="sd">    - NAS monté en écriture sur ``remote_nas`` (ex. via ``/etc/fstab`` SMB/NFS)</span>
+
+<span class="sd">    :param server: Dictionnaire de configuration du serveur.</span>
+<span class="sd">    :param remote_nas: Chemin du NAS tel que monté sur le Pi.</span>
+<span class="sd">    :param dry_run: Si ``True``, affiche la commande sans l&#39;exécuter.</span>
+<span class="sd">    :returns: Nom de la session tmux, ou ``None`` en cas d&#39;échec.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;device&quot;</span><span class="p">]</span>
+    <span class="n">compressor</span> <span class="o">=</span> <span class="n">server</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;compressor&quot;</span><span class="p">,</span> <span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
+    <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">if</span> <span class="n">compressor</span> <span class="o">==</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">else</span> <span class="s2">&quot;gz&quot;</span>
+    <span class="n">compress_cmd</span> <span class="o">=</span> <span class="s2">&quot;lz4 -c&quot;</span> <span class="k">if</span> <span class="n">compressor</span> <span class="o">==</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">else</span> <span class="s2">&quot;gzip -c&quot;</span>
+
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span>
+    <span class="n">remote_dir</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remote_nas</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">output_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.img.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">done_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.done&quot;</span>
+    <span class="n">log_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.ddlog&quot;</span>
+
+    <span class="n">session</span> <span class="o">=</span> <span class="n">_tmux_session_name</span><span class="p">(</span><span class="n">server</span><span class="p">)</span>
+
+    <span class="c1"># dd stderr (progression) → log_file ; code retour → done_file</span>
+    <span class="n">remote_cmd</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;mkdir -p </span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2"> &amp;&amp; &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;sudo dd if=</span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2"> bs=4M 2&gt;</span><span class="si">{</span><span class="n">log_file</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">compress_cmd</span><span class="si">}</span><span class="s2"> &gt; </span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2"> ; &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;echo $? &gt; </span><span class="si">{</span><span class="n">done_file</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">tmux_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;tmux new-session -d -s </span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s2"> &#39;</span><span class="si">{</span><span class="n">remote_cmd</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Mode tmux — </span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dry_run</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] [DRY-RUN] </span><span class="si">{</span><span class="n">tmux_cmd</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">session</span>
+
+    <span class="c1"># Tuer une éventuelle session fantôme du même nom</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;tmux kill-session -t </span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s2"> 2&gt;/dev/null&quot;</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="n">tmux_cmd</span><span class="p">),</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Échec création session tmux: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Session &#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s2">&#39; démarrée.&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Suivi interactif : ssh </span><span class="si">{</span><span class="n">server</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user&#39;</span><span class="p">,</span><span class="s1">&#39;pi&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">@</span><span class="si">{</span><span class="n">server</span><span class="p">[</span><span class="s1">&#39;ip&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &#39;tmux attach -t </span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span></div>
+
+
+
+<div class="viewcode-block" id="tmux_status">
+<a class="viewcode-back" href="../api.html#server.tmux_status">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tmux_status</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">remote_nas</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retourne l&#39;état de la session tmux de sauvegarde.</span>
+
+<span class="sd">    Vérifie si la session est active, et si un fichier ``.done`` existe</span>
+<span class="sd">    (indiquant la fin de la sauvegarde et son code retour).</span>
+
+<span class="sd">    :param server: Dictionnaire de configuration du serveur.</span>
+<span class="sd">    :param remote_nas: Chemin du NAS tel que monté sur le Pi.</span>
+<span class="sd">    :returns: Dictionnaire avec les clés ``running`` (bool), ``done`` (bool),</span>
+<span class="sd">              ``exit_code`` (int|None), ``files`` (liste des ``.img.*`` créés).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">_tmux_session_name</span><span class="p">(</span><span class="n">server</span><span class="p">)</span>
+    <span class="n">remote_dir</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remote_nas</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Session toujours active ?</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;tmux has-session -t </span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s2"> 2&gt;/dev/null&quot;</span><span class="p">),</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">running</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="c1"># Fichier .done présent ?</span>
+    <span class="n">r2</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;cat </span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2">/*.done 2&gt;/dev/null || true&quot;</span><span class="p">),</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">done_content</span> <span class="o">=</span> <span class="n">r2</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">done</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">done_content</span><span class="p">)</span>
+    <span class="n">exit_code</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">done_content</span><span class="p">)</span> <span class="k">if</span> <span class="n">done_content</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># Taille du dernier fichier image en cours</span>
+    <span class="n">r3</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;ls -lh </span><span class="si">{</span><span class="n">remote_dir</span><span class="si">}</span><span class="s2">/*.img.* 2&gt;/dev/null | tail -1 || true&quot;</span><span class="p">),</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">latest</span> <span class="o">=</span> <span class="n">r3</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span> <span class="n">running</span><span class="p">,</span> <span class="s2">&quot;done&quot;</span><span class="p">:</span> <span class="n">done</span><span class="p">,</span> <span class="s2">&quot;exit_code&quot;</span><span class="p">:</span> <span class="n">exit_code</span><span class="p">,</span> <span class="s2">&quot;latest&quot;</span><span class="p">:</span> <span class="n">latest</span><span class="p">}</span></div>
+
+
+
 <div class="viewcode-block" id="backup_server">
 <a class="viewcode-back" href="../api.html#server.backup_server">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">backup_server</span><span class="p">(</span><span class="n">server</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">nas_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
@@ -165,13 +336,16 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
     <span class="n">device</span> <span class="o">=</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;device&quot;</span><span class="p">]</span>
+    <span class="c1"># lz4 : compression ~10x plus rapide que gzip, ratio légèrement inférieur</span>
+    <span class="n">compressor</span> <span class="o">=</span> <span class="n">server</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;compressor&quot;</span><span class="p">,</span> <span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
+    <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">if</span> <span class="n">compressor</span> <span class="o">==</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">else</span> <span class="s2">&quot;gz&quot;</span>
+    <span class="n">compress_cmd</span> <span class="o">=</span> <span class="s2">&quot;lz4 -c&quot;</span> <span class="k">if</span> <span class="n">compressor</span> <span class="o">==</span> <span class="s2">&quot;lz4&quot;</span> <span class="k">else</span> <span class="s2">&quot;gzip -c&quot;</span>
+
     <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span>
     <span class="n">server_dir</span> <span class="o">=</span> <span class="n">nas_path</span> <span class="o">/</span> <span class="n">name</span>
-    <span class="n">output_file</span> <span class="o">=</span> <span class="n">server_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.img.gz&quot;</span>
+    <span class="n">output_file</span> <span class="o">=</span> <span class="n">server_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.img.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
 
-    <span class="c1"># dd with progress sent to stderr (stays in terminal), stdout piped here</span>
-    <span class="c1"># remote_cmd = f&quot;sudo dd if={device} bs=4M 2&gt;/dev/null | gzip -c&quot;</span>
-    <span class="n">remote_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sudo dd if=</span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2"> bs=4M status=progress | gzip -c&quot;</span>  <span class="c1"># avec data de progression</span>
+    <span class="n">remote_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sudo dd if=</span><span class="si">{</span><span class="n">device</span><span class="si">}</span><span class="s2"> bs=4M status=progress | </span><span class="si">{</span><span class="n">compress_cmd</span><span class="si">}</span><span class="s2">&quot;</span>
 
     <span class="n">cmd</span> <span class="o">=</span> <span class="n">_ssh_cmd</span><span class="p">(</span><span class="n">server</span><span class="p">,</span> <span class="n">remote_cmd</span><span class="p">)</span>
 
@@ -186,7 +360,7 @@
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Transfert en cours (peut durer 15-60 min selon la taille)...&quot;</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">7200</span><span class="p">)</span>  <span class="c1"># 2h max</span>
+            <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">TIMEOUT</span><span class="p">)</span>  <span class="c1">#  max</span>
 
         <span class="k">if</span> <span class="n">proc</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] dd/SSH a retourné le code </span><span class="si">{</span><span class="n">proc</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -198,7 +372,7 @@
         <span class="k">return</span> <span class="n">output_file</span>
 
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">:</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Timeout dépassé (2h)&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">] Timeout dépassé (</span><span class="si">{</span><span class="n">TIMEOUT</span><span class="o">/</span><span class="mi">3600</span><span class="si">}</span><span class="s2"> h)&quot;</span><span class="p">)</span>
         <span class="n">output_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>

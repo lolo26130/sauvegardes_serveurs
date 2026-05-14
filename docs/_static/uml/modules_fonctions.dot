@@ -14,8 +14,8 @@ digraph "sauvegardes_serveurs" {
         color="#2980b9"
         fillcolor="#d6eaf8"
 
-        main        [label="{main()|Point d\'entrée CLI\lparse args → orchestre}", fillcolor="#aed6f1"]
-        load_config [label="{load_config(path)|Lit config.yml\l→ dict}", fillcolor="#aed6f1"]
+        main          [label="{main()|Point d\'entrée CLI\lparse args → orchestre}", fillcolor="#aed6f1"]
+        load_config   [label="{load_config(path)|Lit config.yml\l→ dict}", fillcolor="#aed6f1"]
         setup_logging [label="{setup_logging(verbose)|Configure handlers\lSTDOUT + fichier log}", fillcolor="#aed6f1"]
     }
 
@@ -27,9 +27,12 @@ digraph "sauvegardes_serveurs" {
         color="#27ae60"
         fillcolor="#d5f5e3"
 
-        check_server  [label="{check_server(server)|SSH → lsblk\l→ bool}", fillcolor="#a9dfbf"]
-        backup_server [label="{backup_server(server, nas_path, dry_run)|SSH + dd | gzip\lstream → NAS\l→ Path | None}", fillcolor="#a9dfbf"]
-        _ssh_cmd      [label="{_ssh_cmd(server, remote_cmd)|Construit argv SSH\l→ list[str]}", fillcolor="#a9dfbf"]
+        check_server       [label="{check_server(server)|SSH → lsblk\l→ bool}", fillcolor="#a9dfbf"]
+        backup_server      [label="{backup_server(server, nas_path, dry_run)|SSH + dd | lz4/gzip\lstream → NAS via PC\l→ Path | None}", fillcolor="#a9dfbf"]
+        start_backup_tmux  [label="{start_backup_tmux(server, remote_nas, dry_run)|Lance dd dans tmux sur le Pi\lPC peut se déconnecter\l→ session name | None}", fillcolor="#a9dfbf"]
+        tmux_status        [label="{tmux_status(server, remote_nas)|Vérifie session tmux\l+ fichier .done\l→ dict}", fillcolor="#a9dfbf"]
+        speed_test_server  [label="{speed_test_server(server, size_mb)|Débit SSH + taille device\l→ dict | None}", fillcolor="#a9dfbf"]
+        _ssh_cmd           [label="{_ssh_cmd(server, remote_cmd)|Construit argv SSH\l→ list[str]}", fillcolor="#a9dfbf"]
     }
 
     subgraph cluster_storage {
@@ -40,9 +43,10 @@ digraph "sauvegardes_serveurs" {
         color="#8e44ad"
         fillcolor="#e8daef"
 
-        check_nas    [label="{check_nas(nas_path)|Test écriture NAS\l→ bool}", fillcolor="#d2b4de"]
-        cleanup      [label="{cleanup_old_backups(server_dir, keep, dry_run)|Rotation : garde N plus récentes}", fillcolor="#d2b4de"]
-        list_backups [label="{list_backups(nas_path, servers)|Inventaire console\ldes .img.gz}", fillcolor="#d2b4de"]
+        check_nas       [label="{check_nas(nas_path)|Test écriture NAS\l→ bool}", fillcolor="#d2b4de"]
+        cleanup         [label="{cleanup_old_backups(server_dir, keep, dry_run)|Rotation : garde N plus récentes}", fillcolor="#d2b4de"]
+        list_backups    [label="{list_backups(nas_path, servers)|Inventaire console\ldes .img.*}", fillcolor="#d2b4de"]
+        speed_test_nas  [label="{speed_test_nas(nas_path, size_mb)|Débit écriture NAS\l→ float | None}", fillcolor="#d2b4de"]
     }
 
     subgraph cluster_extern {
@@ -52,28 +56,38 @@ digraph "sauvegardes_serveurs" {
         style="dashed"
         color="#7f8c8d"
 
-        ssh   [label="{ssh|OpenSSH client}", shape=parallelogram, fillcolor="#f2f3f4"]
-        dd    [label="{dd | gzip|Image disque compressée\nstreamée via SSH}", shape=parallelogram, fillcolor="#f2f3f4"]
-        nas   [label="{NAS|.img.gz stocké\nen /mnt/nas/...}", shape=cylinder, fillcolor="#fdfefe"]
-        yaml  [label="{config.yml|Paramètres serveurs\net rétention}", shape=note, fillcolor="#fef9e7"]
+        ssh    [label="{ssh|OpenSSH client}", shape=parallelogram, fillcolor="#f2f3f4"]
+        dd_pc  [label="{dd | lz4/gzip (mode PC)|Stream via SSH stdout\nPC → NAS}", shape=parallelogram, fillcolor="#f2f3f4"]
+        tmux   [label="{tmux (mode Pi)|Session persistante\ndd | lz4/gzip > NAS}", shape=parallelogram, fillcolor="#e8f8f5"]
+        nas    [label="{NAS|.img.lz4 / .img.gz\n+ .done + .ddlog}", shape=cylinder, fillcolor="#fdfefe"]
+        yaml   [label="{config.yml|Paramètres serveurs\net rétention}", shape=note, fillcolor="#fef9e7"]
     }
 
     // ── Appels internes ──────────────────────────────────────────────
-    main -> load_config   [label="1. lit"]
-    main -> setup_logging [label="2. init"]
-    main -> check_nas     [label="3. pré-vol"]
-    main -> check_server  [label="--check"]
-    main -> backup_server [label="4. sauvegarde"]
-    main -> cleanup       [label="5. rotation"]
-    main -> list_backups  [label="--list"]
+    main -> load_config        [label="1. lit"]
+    main -> setup_logging      [label="2. init"]
+    main -> check_nas          [label="3. pré-vol"]
+    main -> check_server       [label="--check"]
+    main -> speed_test_server  [label="--speed-test"]
+    main -> speed_test_nas     [label="--speed-test"]
+    main -> backup_server      [label="4a. sauvegarde\l(mode PC)"]
+    main -> start_backup_tmux  [label="4b. --tmux"]
+    main -> tmux_status        [label="--status"]
+    main -> cleanup            [label="5. rotation"]
+    main -> list_backups       [label="--list"]
 
-    backup_server -> _ssh_cmd [label="construit cmd"]
-    check_server  -> _ssh_cmd [label="construit cmd"]
+    backup_server     -> _ssh_cmd [label="construit cmd"]
+    check_server      -> _ssh_cmd [label="construit cmd"]
+    start_backup_tmux -> _ssh_cmd [label="construit cmd"]
+    tmux_status       -> _ssh_cmd [label="construit cmd"]
+    speed_test_server -> _ssh_cmd [label="construit cmd"]
 
     // ── Appels externes ──────────────────────────────────────────────
-    load_config  -> yaml  [style=dashed, arrowhead=open, label="parse"]
-    _ssh_cmd     -> ssh   [style=dashed, arrowhead=open, label="subprocess"]
-    backup_server -> dd   [style=dashed, arrowhead=open, label="remote pipe"]
-    dd           -> nas   [style=dashed, arrowhead=open, label="stream .img.gz"]
-    cleanup      -> nas   [style=dashed, arrowhead=open, label="unlink anciens"]
+    load_config       -> yaml   [style=dashed, arrowhead=open, label="parse"]
+    _ssh_cmd          -> ssh    [style=dashed, arrowhead=open, label="subprocess"]
+    backup_server     -> dd_pc  [style=dashed, arrowhead=open, label="remote pipe"]
+    dd_pc             -> nas    [style=dashed, arrowhead=open, label="stream"]
+    start_backup_tmux -> tmux   [style=dashed, arrowhead=open, label="new-session"]
+    tmux              -> nas    [style=dashed, arrowhead=open, label="écrit direct"]
+    cleanup           -> nas    [style=dashed, arrowhead=open, label="unlink anciens"]
 }

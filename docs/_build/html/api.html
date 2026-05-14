@@ -56,12 +56,16 @@
 <li class="toctree-l2"><a class="reference internal" href="#module-server">server — Connexion SSH et imagerie</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#server.backup_server"><code class="docutils literal notranslate"><span class="pre">backup_server()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#server.check_server"><code class="docutils literal notranslate"><span class="pre">check_server()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#server.speed_test_server"><code class="docutils literal notranslate"><span class="pre">speed_test_server()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#server.start_backup_tmux"><code class="docutils literal notranslate"><span class="pre">start_backup_tmux()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#server.tmux_status"><code class="docutils literal notranslate"><span class="pre">tmux_status()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#module-storage">storage — Gestion du NAS</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#storage.check_nas"><code class="docutils literal notranslate"><span class="pre">check_nas()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#storage.cleanup_old_backups"><code class="docutils literal notranslate"><span class="pre">cleanup_old_backups()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#storage.list_backups"><code class="docutils literal notranslate"><span class="pre">list_backups()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#storage.speed_test_nas"><code class="docutils literal notranslate"><span class="pre">speed_test_nas()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -206,6 +210,81 @@ avant la première sauvegarde.</p>
 </dl>
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py" id="server.speed_test_server">
+<span class="sig-prename descclassname"><span class="pre">server.</span></span><span class="sig-name descname"><span class="pre">speed_test_server</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_mb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">256</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/server.html#speed_test_server"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#server.speed_test_server" title="Lien vers cette définition"></a></dt>
+<dd><p>Mesure le débit SSH et la taille du périphérique à sauvegarder.</p>
+<p>Transfère <code class="docutils literal notranslate"><span class="pre">size_mb</span></code> Mo depuis <code class="docutils literal notranslate"><span class="pre">/dev/zero</span></code> du serveur distant vers
+<code class="docutils literal notranslate"><span class="pre">/dev/null</span></code> local pour mesurer le débit réseau SSH, puis interroge
+la taille réelle du périphérique via <code class="docutils literal notranslate"><span class="pre">blockdev</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – Dictionnaire de configuration du serveur.</p></li>
+<li><p><strong>size_mb</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Volume transféré pour le test de débit (défaut : 256 Mo).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(dans Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionnaire avec <code class="docutils literal notranslate"><span class="pre">ssh_mbs</span></code> (Mo/s), <code class="docutils literal notranslate"><span class="pre">device_gb</span></code> et
+<code class="docutils literal notranslate"><span class="pre">estimated_min</span></code> (fourchette basse/haute), ou <code class="docutils literal notranslate"><span class="pre">None</span></code> si échec.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="server.start_backup_tmux">
+<span class="sig-prename descclassname"><span class="pre">server.</span></span><span class="sig-name descname"><span class="pre">start_backup_tmux</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_nas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/server.html#start_backup_tmux"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#server.start_backup_tmux" title="Lien vers cette définition"></a></dt>
+<dd><p>Lance la sauvegarde dans une session tmux détachée sur le serveur.</p>
+<p>Le flux est entièrement local au Pi : <code class="docutils literal notranslate"><span class="pre">dd</span> <span class="pre">|</span> <span class="pre">compressor</span> <span class="pre">&gt;</span> <span class="pre">NAS</span></code>.
+La connexion SSH du PC peut être interrompue sans affecter la sauvegarde.
+Un fichier <code class="docutils literal notranslate"><span class="pre">&lt;nom&gt;_&lt;ts&gt;.done</span></code> (contenant le code retour) est créé à la fin.</p>
+<p>Prérequis supplémentaire sur le Pi :</p>
+<ul class="simple">
+<li><p>NAS monté en écriture sur <code class="docutils literal notranslate"><span class="pre">remote_nas</span></code> (ex. via <code class="docutils literal notranslate"><span class="pre">/etc/fstab</span></code> SMB/NFS)</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – Dictionnaire de configuration du serveur.</p></li>
+<li><p><strong>remote_nas</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Chemin du NAS tel que monté sur le Pi.</p></li>
+<li><p><strong>dry_run</strong> – Si <code class="docutils literal notranslate"><span class="pre">True</span></code>, affiche la commande sans l’exécuter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(dans Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Nom de la session tmux, ou <code class="docutils literal notranslate"><span class="pre">None</span></code> en cas d’échec.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="server.tmux_status">
+<span class="sig-prename descclassname"><span class="pre">server.</span></span><span class="sig-name descname"><span class="pre">tmux_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote_nas</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/server.html#tmux_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#server.tmux_status" title="Lien vers cette définition"></a></dt>
+<dd><p>Retourne l’état de la session tmux de sauvegarde.</p>
+<p>Vérifie si la session est active, et si un fichier <code class="docutils literal notranslate"><span class="pre">.done</span></code> existe
+(indiquant la fin de la sauvegarde et son code retour).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – Dictionnaire de configuration du serveur.</p></li>
+<li><p><strong>remote_nas</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Chemin du NAS tel que monté sur le Pi.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionnaire avec les clés <code class="docutils literal notranslate"><span class="pre">running</span></code> (bool), <code class="docutils literal notranslate"><span class="pre">done</span></code> (bool),
+<code class="docutils literal notranslate"><span class="pre">exit_code</span></code> (int|None), <code class="docutils literal notranslate"><span class="pre">files</span></code> (liste des <code class="docutils literal notranslate"><span class="pre">.img.*</span></code> créés).</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="module-storage">
 <span id="storage-gestion-du-nas"></span><h2><a class="toc-backref" href="#id3" role="doc-backlink">storage — Gestion du NAS</a><a class="headerlink" href="#module-storage" title="Lien vers cette rubrique"></a></h2>
@@ -261,6 +340,28 @@ au plus ancien, avec leur taille et leur date de création.</p>
 <li><p><strong>nas_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Chemin du répertoire racine sur le NAS.</p></li>
 <li><p><strong>servers</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>]</span>) – Liste de dictionnaires de configuration des serveurs.</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="storage.speed_test_nas">
+<span class="sig-prename descclassname"><span class="pre">storage.</span></span><span class="sig-name descname"><span class="pre">speed_test_nas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nas_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_mb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">256</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storage.html#speed_test_nas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#storage.speed_test_nas" title="Lien vers cette définition"></a></dt>
+<dd><p>Mesure la vitesse d’écriture séquentielle sur le NAS.</p>
+<p>Écrit <code class="docutils literal notranslate"><span class="pre">size_mb</span></code> Mo de zéros en blocs de 1 Mo avec fsync final,
+puis supprime le fichier de test.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Paramètres<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nas_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Répertoire racine du NAS.</p></li>
+<li><p><strong>size_mb</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Volume de données à écrire en Mo (défaut : 256).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Type renvoyé<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(dans Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(dans Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Renvoie<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Débit en Mo/s, ou <code class="docutils literal notranslate"><span class="pre">None</span></code> si le NAS est inaccessible.</p>
 </dd>
 </dl>
 </dd></dl>
