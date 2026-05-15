@@ -176,17 +176,43 @@ def start_backup_tmux(server: dict, remote_nas: str, dry_run=False) -> str | Non
         log.info(f"[{name}] [DRY-RUN] {tmux_cmd}")
         return session
 
+    # Vérifier que le NAS est bien monté sur le serveur distant
+    r_mount = subprocess.run(
+        _ssh_cmd(server, f"mountpoint -q {remote_nas} 2>/dev/null && echo OK || echo NOT_MOUNTED"),
+        capture_output=True, text=True, timeout=10,
+    )
+    if "NOT_MOUNTED" in r_mount.stdout:
+        log.error(f"[{name}] NAS non monté sur le serveur à '{remote_nas}'")
+        log.error(f"[{name}] Monter le NAS d'abord : sudo mount -t nfs4 <NAS_IP>:<export> {remote_nas}")
+        return None
+
     # Tuer une éventuelle session fantôme du même nom
-    subprocess.run(_ssh_cmd(server, f"tmux kill-session -t {session} 2>/dev/null"), timeout=10)
+    subprocess.run(_ssh_cmd(server, f"/usr/bin/tmux kill-session -t {session} 2>/dev/null"), timeout=10)
 
     result = subprocess.run(_ssh_cmd(server, tmux_cmd), capture_output=True, timeout=15)
     if result.returncode != 0:
         log.error(f"[{name}] Échec création session tmux: {result.stderr.strip()}")
         return None
 
-    log.info(f"[{name}] Session '{session}' démarrée.")
-    log.info(f"[{name}] État global    : make status")
-    log.info(f"[{name}] Suivi direct  : ssh -t {server.get('user','pi')}@{server['ip']} 'tmux attach -t {session}'")
+    # Vérifier que la session est toujours vivante 1 s après le lancement
+    time.sleep(1)
+    r_check = subprocess.run(
+        _ssh_cmd(server, f"/usr/bin/tmux has-session -t {session} 2>/dev/null"),
+        capture_output=True, timeout=10,
+    )
+    if r_check.returncode != 0:
+        # Récupérer le code d'erreur dans le .done si disponible
+        r_done = subprocess.run(
+            _ssh_cmd(server, f"cat {remote_dir}/*.done 2>/dev/null || echo '?'"),
+            capture_output=True, text=True, timeout=10,
+        )
+        log.error(f"[{name}] La session a démarré puis s'est arrêtée immédiatement (code={r_done.stdout.strip()}).")
+        log.error(f"[{name}] Vérifier le log : cat {remote_dir}/*.ddlog 2>/dev/null")
+        return None
+
+    log.info(f"[{name}] Session '{session}' démarrée et active.")
+    log.info(f"[{name}] État global   : make status")
+    log.info(f"[{name}] Suivi direct : ssh -t {server.get('user','pi')}@{server['ip']} '/usr/bin/tmux attach -t {session}'")
     return session
 
 

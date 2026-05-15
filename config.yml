@@ -39,6 +39,12 @@ servers:
 #----------------------------------------------------------------
 
 
+#       TODO :
+#  sudo apt install tmux lz4 nfs-common
+# mkdir /mnt/NAS_sauvegardes
+#   sur le NAS faire le répertoire : NAS_Vol2/ALL_servers_SP3C_backups/DietPiHole
+# sudo mount a  # exécute fstab
+
 # à ajouter au fstab dans chaque serveur (+ mkdir !)
 #----------------------------------------------------------------
 # NETWORK FOR BACKUPS 
