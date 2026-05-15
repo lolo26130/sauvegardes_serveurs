@@ -1,9 +1,9 @@
 nas:
   path: /home/laurent/Mounts/NAS_Vol2/ALL_servers_SP3C_backups/        # Chemin du NAS monté sur ce PC
-  remote_path: /mnt/nas/sauvegardes                                     # Chemin du NAS monté sur les Pi (mode tmux)
+  remote_path: /mnt/NAS_sauvegardes                                     # Chemin du NAS monté sur les Pi (mode tmux)
 
 retention:
-  keep: 3                            # Nombre de sauvegardes conservées par serveur
+  keep: 3                                # Nombre de sauvegardes conservées par serveur
 
 servers:
   - name: DietPiHole
@@ -26,3 +26,63 @@ servers:
     ip: 192.168.0.55
     user: dietpi
     device: /dev/mmcblk1             # eMMC (vérifier avec --check avant la 1ère sauvegarde)
+
+
+# à ajouter au fstab dans chaque serveur (+ mkdir !)
+#----------------------------------------------------------------
+# NETWORK FOR BACKUPS 
+# - _netdev : indique au système que ce montage dépend du réseau — 
+# systemd attend que le réseau soit up avant de le monter au boot
+# - hard : si le NAS devient inaccessible, les opérations I/O bloquent 
+# (attendent le retour du NAS) plutôt que d'échouer avec une erreur.
+# Adapté à un usage backup : on préfère attendre plutôt que corrompre une écriture en cours
+# - Montage automatique au boot, synchrone, dans la séquence normale de démarrage
+#----------------------------------------------------------------
+# 192.168.0.21:/volume2/Volume_2/ALL_servers_SP3C_backups  /mnt/NAS_sauvegardes  nfs4  defaults,_netdev,hard,rsize=131072,wsize=131072  0  0
+
+
+
+
+# btw pourquoi les options nfs4 defaults,_netdev,hard 0 0 alors que d'autres points de montage ont : nfs noauto, x-systemd.automount ? explique les différences et usages .                        
+
+#     Très bonne question. Voici les différences :
+
+#     ---
+#     _netdev,hard (ce que j'ai proposé)
+
+#     - _netdev : indique au système que ce montage dépend du réseau — systemd attend que le réseau soit up avant de le monter au boot
+#     - hard : si le NAS devient inaccessible, les opérations I/O bloquent (attendent le retour du NAS) plutôt que d'échouer avec une erreur. Adapté à un usage backup : on préfère attendre plutôt que corrompre une écriture en cours
+#     - Montage automatique au boot, synchrone, dans la séquence normale de démarrage
+
+#     ---
+#     noauto,x-systemd.automount (style "paresseux")
+
+#     - noauto : n'est pas monté au boot automatiquement
+#     - x-systemd.automount : systemd crée un point de montage virtuel ; le montage réel se déclenche à la première tentative d'accès (comme un montage à la demande)
+#     - Avantage : le boot n'est pas ralenti si le NAS est absent ou lent à répondre
+#     - Inconvénient : le premier accès subit un délai (temps de montage), et si le NAS est absent au moment de l'accès, ça échoue à cet instant
+
+#     ---
+#     nfs vs nfs4
+
+#     - nfs laisse le kernel négocier la version (peut tomber sur NFSv3)
+#     - nfs4 force NFSv4 explicitement — plus performant, meilleure gestion des verrous, cohérent avec ce que votre PC utilise déjà (vers=4.0 visible dans votre mount)
+
+#     ---
+#     Ce qui convient pour un backup automatisé (cron/tmux)
+
+#     _netdev,hard,nfs4 est le bon choix : le NAS doit être monté avant que le script de backup démarre, et on veut que les écritures soient robustes. Le style automount est plutôt fait pour un usage interactif bureautique où on accède au
+#      NAS occasionnellement.
+
+# options rsize, wsize comment les as tu déterminées ?
+
+#     Directement depuis la sortie de mount de votre PC, visible dans la conversation :
+
+#     rsize=131072,wsize=131072
+
+#     C'était déjà la valeur négociée par votre PC avec le NAS Synology pour le montage de /volume2/Volume_2. J'ai repris ces valeurs pour être cohérent — si elles fonctionnent bien pour le PC, elles fonctionneront bien pour le Pi sur le
+#     même NAS.
+
+#     131072 octets = 128 Ko par bloc de lecture/écriture, c'est la valeur maximale courante pour NFSv4 et généralement optimale pour les transferts séquentiels larges (comme un dd).
+
+

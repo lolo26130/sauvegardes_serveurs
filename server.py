@@ -168,7 +168,7 @@ def start_backup_tmux(server: dict, remote_nas: str, dry_run=False) -> str | Non
         f"sudo dd if={device} bs=4M 2>{log_file} | {compress_cmd} > {output_file} ; "
         f"echo $? > {done_file}"
     )
-    tmux_cmd = f"tmux new-session -d -s {session} '{remote_cmd}'"
+    tmux_cmd = f"/usr/bin/tmux new-session -d -s {session} '{remote_cmd}'"
 
     log.info(f"[{name}] Mode tmux — {device} → {output_file}")
 
