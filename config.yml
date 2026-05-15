@@ -9,7 +9,8 @@ servers:
   - name: DietPiHole
     ip: 192.168.0.202
     user: dietpi
-    device: /dev/mmcblk0p1             # Carte SD PiHole
+    device: /dev/mmcblk0               # Carte SD 14.8GB (disque entier : table de partitions + boot + rootfs)
+    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
 
   - name: raspberry-pi4
     ip: 192.168.0.53
@@ -21,11 +22,21 @@ servers:
     ip: 192.168.0.54
     user: admin
     device: /dev/mmcblk0             # Carte SD
+    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
 
+#----------------------------------------------------------------
   - name: orange-pi5
     ip: 192.168.0.55
     user: dietpi
-    device: /dev/mmcblk1             # eMMC (vérifier avec --check avant la 1ère sauvegarde)
+    device: /dev/mmcblk0             # eMMC 233GB (seul disque, pas de carte SD)
+    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+#   pour info :
+#  mtdblock0       16M   → flash SPI (bootloader bas niveau, ignorer)
+#   mmcblk0        233G   → eMMC soudée = LE disque de boot
+#   └─mmcblk0p1  232,9G   /   (rootfs monté ici)
+#   mmcblk0boot0    4M    → partition boot eMMC matérielle
+#   mmcblk0boot1    4M    → partition boot eMMC matérielle
+#----------------------------------------------------------------
 
 
 # à ajouter au fstab dans chaque serveur (+ mkdir !)

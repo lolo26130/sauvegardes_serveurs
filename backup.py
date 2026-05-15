@@ -45,11 +45,12 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  python backup.py                         # Sauvegarder tous les serveurs
-  python backup.py --server raspberry-pi4  # Un seul serveur
-  python backup.py --check                 # Vérifier la connectivité SSH
-  python backup.py --list                  # Lister les sauvegardes existantes
-  python backup.py --dry-run               # Simuler sans rien écrire
+  make backup                              # Sauvegarder tous les serveurs
+  make tmux SERVER=raspberry-pi4           # Sauvegarde tmux un seul serveur
+  make check                              # Vérifier la connectivité SSH
+  make status                             # État des sessions tmux
+  make list                               # Lister les sauvegardes existantes
+  uv run backup.py --dry-run              # Simuler sans rien écrire
         """,
     )
     parser.add_argument("--config", default="config.yml", help="Fichier de configuration")
@@ -139,7 +140,7 @@ Exemples:
             if session:
                 success += 1
         log.info(f"{success}/{len(servers)} session(s) tmux démarrée(s)")
-        log.info(f"Suivre l'état : python backup.py --status")
+        log.info("Suivre l'état : make status  (ou : uv run backup.py --status)")
         return 0 if success == len(servers) else 1
 
     if not check_nas(nas_path):

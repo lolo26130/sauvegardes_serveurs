@@ -127,11 +127,12 @@
         <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">,</span>
         <span class="n">epilog</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">Exemples:</span>
-<span class="s2">  python backup.py                         # Sauvegarder tous les serveurs</span>
-<span class="s2">  python backup.py --server raspberry-pi4  # Un seul serveur</span>
-<span class="s2">  python backup.py --check                 # Vérifier la connectivité SSH</span>
-<span class="s2">  python backup.py --list                  # Lister les sauvegardes existantes</span>
-<span class="s2">  python backup.py --dry-run               # Simuler sans rien écrire</span>
+<span class="s2">  make backup                              # Sauvegarder tous les serveurs</span>
+<span class="s2">  make tmux SERVER=raspberry-pi4           # Sauvegarde tmux un seul serveur</span>
+<span class="s2">  make check                              # Vérifier la connectivité SSH</span>
+<span class="s2">  make status                             # État des sessions tmux</span>
+<span class="s2">  make list                               # Lister les sauvegardes existantes</span>
+<span class="s2">  uv run backup.py --dry-run              # Simuler sans rien écrire</span>
 <span class="s2">        &quot;&quot;&quot;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--config&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;config.yml&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Fichier de configuration&quot;</span><span class="p">)</span>
@@ -221,7 +222,7 @@
             <span class="k">if</span> <span class="n">session</span><span class="p">:</span>
                 <span class="n">success</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">success</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">servers</span><span class="p">)</span><span class="si">}</span><span class="s2"> session(s) tmux démarrée(s)&quot;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Suivre l&#39;état : python backup.py --status&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Suivre l&#39;état : make status  (ou : uv run backup.py --status)&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">success</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">servers</span><span class="p">)</span> <span class="k">else</span> <span class="mi">1</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">check_nas</span><span class="p">(</span><span class="n">nas_path</span><span class="p">):</span>

@@ -185,7 +185,8 @@ def start_backup_tmux(server: dict, remote_nas: str, dry_run=False) -> str | Non
         return None
 
     log.info(f"[{name}] Session '{session}' démarrée.")
-    log.info(f"[{name}] Suivi interactif : ssh {server.get('user','pi')}@{server['ip']} 'tmux attach -t {session}'")
+    log.info(f"[{name}] État global    : make status")
+    log.info(f"[{name}] Suivi direct  : ssh -t {server.get('user','pi')}@{server['ip']} 'tmux attach -t {session}'")
     return session
 
 

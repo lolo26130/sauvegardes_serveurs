@@ -7,7 +7,7 @@ backup:
 	uv run backup.py
 
 tmux:
-	uv run backup.py --tmux
+	uv run backup.py --tmux $(if $(SERVER),--server $(SERVER),)
 
 status:
 	uv run backup.py --status
