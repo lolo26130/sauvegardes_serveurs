@@ -11,6 +11,7 @@ Chaque sauvegarde est un fichier .img.gz récupéré par dd via SSH.
 import argparse
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -119,15 +120,34 @@ Exemples:
         if not remote_nas:
             log.error("'nas.remote_path' manquant dans config.yml (requis pour --status)")
             return 1
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        status_file = nas_path / f"status_{timestamp}.md"
+        lines: list[str] = [
+            f"# Statut sauvegardes — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
+        ]
+
         for server in servers:
             s = tmux_status(server, remote_nas)
             if s["done"]:
                 verdict = "OK" if s["exit_code"] == 0 else f"ERREUR (code {s['exit_code']})"
-                log.info(f"[{s['name']}] Terminé — {verdict}  {s['latest']}")
+                msg = f"Terminé — {verdict}  {s['latest']}"
+                icon = "✅" if s["exit_code"] == 0 else "❌"
             elif s["running"]:
-                log.info(f"[{s['name']}] En cours…  {s['latest']}")
+                msg = f"En cours…  {s['latest']}"
+                icon = "🔄"
             else:
-                log.info(f"[{s['name']}] Aucune session active")
+                msg = "Aucune session active"
+                icon = "⏹"
+            log.info(f"[{s['name']}] {msg}")
+            lines.append(f"- {icon} **{s['name']}** : {msg}\n")
+
+        try:
+            status_file.write_text("".join(lines), encoding="utf-8")
+            log.info(f"Rapport écrit : {status_file.name}")
+        except OSError as e:
+            log.warning(f"Impossible d'écrire le rapport sur le NAS : {e}")
+
         return 0
 
     if args.tmux:
