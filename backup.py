@@ -16,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from containers import docker_status_server
 from server import backup_server, check_server, speed_test_server, start_backup_tmux, tmux_status
 from storage import check_nas, cleanup_old_backups, list_backups, speed_test_nas
 
@@ -40,6 +41,21 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+def _md_table(headers: list[str], rows: list[list[str]]) -> list[str]:
+    """Génère un tableau Markdown avec colonnes alignées sur la valeur la plus large."""
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            if i < len(widths):
+                widths[i] = max(widths[i], len(cell))
+    header = "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |\n"
+    sep    = "| " + " | ".join("-" * w        for w in widths)               + " |\n"
+    lines  = [header, sep]
+    for row in rows:
+        lines.append("| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |\n")
+    return lines
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Sauvegarde des cartes SD/eMMC via SSH+dd",
@@ -61,6 +77,7 @@ Exemples:
     parser.add_argument("--speed-test", action="store_true", help="Mesurer débit SSH + NAS et estimer la durée")
     parser.add_argument("--tmux", action="store_true", help="Lancer la sauvegarde dans tmux sur le Pi (résistant aux coupures PC)")
     parser.add_argument("--status", action="store_true", help="État des sessions tmux de sauvegarde en cours")
+    parser.add_argument("--docker", action="store_true", help="Lister les containers Docker actifs sur chaque serveur")
     parser.add_argument("--dry-run", action="store_true", help="Simuler sans écrire")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -147,6 +164,95 @@ Exemples:
             log.info(f"Rapport écrit : {status_file.name}")
         except OSError as e:
             log.warning(f"Impossible d'écrire le rapport sur le NAS : {e}")
+
+        return 0
+
+    if args.docker:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        docker_file = nas_path / f"docker_{timestamp}.md"
+        lines: list[str] = [
+            f"# Statut Docker — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n",
+        ]
+
+        for server in servers:
+            result = docker_status_server(server)
+            sname = result["name"]
+            ip = result["ip"]
+            method = result.get("method", "docker")
+
+            if result["installed"] is False:
+                log.info(f"[{sname}] ⚠  Docker non détecté")
+                lines.append(f"## ⚠ {sname} ({ip})\nDocker non détecté\n\n")
+
+            elif result["error"]:
+                log.warning(f"[{sname}] ❌ Erreur : {result['error']}")
+                lines.append(f"## ❌ {sname} ({ip})\nErreur : `{result['error']}`\n\n")
+
+            elif not result["containers"]:
+                log.info(f"[{sname}] 🐳 Aucun container actif")
+                lines.append(f"## 🐳 {sname} ({ip})\nAucun container actif\n\n")
+
+            elif method == "proc":
+                nb = len(result["containers"])
+                log.info(f"[{sname}] 🔍 {nb} container(s) détecté(s) via /proc")
+                lines.append(f"## 🔍 {sname} ({ip}) — {nb} container(s)\n\n")
+                lines.append("> Détection via `/proc` (sans accès socket Docker) "
+                             "— nom et image non disponibles\n\n")
+                rows = [
+                    [f"`{c['name']}`", f"`{c['image']}`", c["cpu_pct"],
+                     f"{c['mem_used']} / {c['mem_limit']}"]
+                    for c in result["containers"]
+                ]
+                lines.extend(_md_table(["ID container", "Processus", "CPU", "RAM utilisée / limite"], rows))
+                # Terminal : largeurs dynamiques
+                w_proc = max((len(c["image"]) for c in result["containers"]), default=10)
+                w_cpu  = max((len(c["cpu_pct"]) for c in result["containers"]), default=5)
+                w_mem  = max((len(f"{c['mem_used']} / {c['mem_limit']}") for c in result["containers"]), default=10)
+                for c in result["containers"]:
+                    mem_str = f"{c['mem_used']} / {c['mem_limit']}"
+                    log.info(
+                        f"  {c['name']}  {c['image']:<{w_proc}}  "
+                        f"CPU {c['cpu_pct']:<{w_cpu}}  RAM {mem_str:<{w_mem}}"
+                    )
+                all_ports = result.get("all_ports", [])
+                if all_ports:
+                    port_str = "  ".join(all_ports)
+                    log.info(f"  Ports exposés : {port_str}")
+                    lines.append(f"\n**Ports exposés (tous containers) :** `{port_str}`\n")
+                lines.append("\n")
+
+            else:
+                nb = len(result["containers"])
+                log.info(f"[{sname}] 🐳 {nb} container(s) actif(s)")
+                lines.append(f"## 🐳 {sname} ({ip}) — {nb} container(s)\n\n")
+                lines.append("> NET ↓/↑ : trafic cumulatif depuis le démarrage du container\n\n")
+                rows = [
+                    [c["name"], c["image"], c["status"], c["cpu_pct"],
+                     f"{c['mem_used']} / {c['mem_limit']}", f"{c['net_rx']} / {c['net_tx']}"]
+                    for c in result["containers"]
+                ]
+                lines.extend(_md_table(
+                    ["Nom", "Image", "Statut", "CPU", "RAM utilisée / limite", "NET ↓ / ↑"], rows
+                ))
+                # Terminal : largeurs dynamiques
+                w_name = max((len(c["name"])   for c in result["containers"]), default=20)
+                w_img  = max((len(c["image"])  for c in result["containers"]), default=30)
+                w_st   = max((len(c["status"]) for c in result["containers"]), default=10)
+                w_cpu  = max((len(c["cpu_pct"]) for c in result["containers"]), default=5)
+                for c in result["containers"]:
+                    log.info(
+                        f"  {c['name']:<{w_name}}  {c['image']:<{w_img}}  {c['status']:<{w_st}}  "
+                        f"CPU {c['cpu_pct']:<{w_cpu}}  "
+                        f"RAM {c['mem_used']}/{c['mem_limit']}  "
+                        f"NET ↓{c['net_rx']} ↑{c['net_tx']}"
+                    )
+                lines.append("\n")
+
+        try:
+            docker_file.write_text("".join(lines), encoding="utf-8")
+            log.info(f"Rapport Docker écrit : {docker_file.name}")
+        except OSError as e:
+            log.warning(f"Impossible d'écrire le rapport Docker sur le NAS : {e}")
 
         return 0
 

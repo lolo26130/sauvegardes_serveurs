@@ -90,7 +90,7 @@ def speed_test_server(server: dict, size_mb: int = 256) -> dict | None:
     # Taille réelle du device
     try:
         r = subprocess.run(
-            _ssh_cmd(server, f"sudo blockdev --getsize64 {device}"),
+            _ssh_cmd(server, f"{_sudo(server)}blockdev --getsize64 {device}"),
             capture_output=True, text=True, timeout=15,
         )
         device_bytes = int(r.stdout.strip())
@@ -126,6 +126,11 @@ def speed_test_server(server: dict, size_mb: int = 256) -> dict | None:
         "est_min_best": est_min_best,
         "est_min_worst": est_min_worst,
     }
+
+
+def _sudo(server: dict) -> str:
+    """Retourne '' si le serveur se connecte déjà en root (no_sudo: true), 'sudo ' sinon."""
+    return "" if server.get("no_sudo") else "sudo "
 
 
 def _tmux_session_name(server: dict) -> str:
@@ -165,7 +170,7 @@ def start_backup_tmux(server: dict, remote_nas: str, dry_run=False) -> str | Non
     # dd stderr (progression) → log_file ; code retour → done_file
     remote_cmd = (
         f"mkdir -p {remote_dir} && "
-        f"sudo dd if={device} bs=4M 2>{log_file} | {compress_cmd} > {output_file} ; "
+        f"{_sudo(server)}dd if={device} bs=4M 2>{log_file} | {compress_cmd} > {output_file} ; "
         f"echo $? > {done_file}"
     )
     tmux_cmd = f"/usr/bin/tmux new-session -d -s {session} '{remote_cmd}'"
@@ -284,7 +289,7 @@ def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
     server_dir = nas_path / name
     output_file = server_dir / f"{name}_{timestamp}.img.{ext}"
 
-    remote_cmd = f"sudo dd if={device} bs=4M status=progress | {compress_cmd}"
+    remote_cmd = f"{_sudo(server)}dd if={device} bs=4M status=progress | {compress_cmd}"
 
     cmd = _ssh_cmd(server, remote_cmd)
 

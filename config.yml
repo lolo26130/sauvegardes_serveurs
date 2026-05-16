@@ -18,11 +18,18 @@ servers:
     device: /dev/mmcblk0             # Carte SD
     compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
 
-  - name: banana-pi
-    ip: 192.168.0.54
-    user: admin
-    device: /dev/mmcblk0             # Carte SD
-    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+  # - name: banana-pi   # l'option est intégrée et configurée dans HA 
+  #   ip: 192.168.0.54
+  #   user: root        # seul user on HA !
+  #   device: /dev/mmcblk0             # Carte SD
+  #   compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+
+  # - name: homeassistant
+  #   ip: 192.168.0.54                 # Raspberry Pi 4 sous HAOS — ajuster si IP différente
+  #   user: root                       # HAOS : connexion directe en root
+  #   no_sudo: true                    # dd sans sudo (déjà root)
+  #   device: /dev/mmcblk0             # SD card — confirmer avec lsblk sur console HAOS
+  #   compressor: gzip                 # lz4 absent sur HAOS (buildroot sans apt)
 
 #----------------------------------------------------------------
   - name: orange-pi5
@@ -56,6 +63,222 @@ servers:
 # - Montage automatique au boot, synchrone, dans la séquence normale de démarrage
 #----------------------------------------------------------------
 # 192.168.0.21:/volume2/Volume_2/ALL_servers_SP3C_backups  /mnt/NAS_sauvegardes  nfs4  defaults,_netdev,hard,rsize=131072,wsize=131072  0  0
+#----------------------------------------------------------------
+
+
+#----------------------------------------------------------------
+#         Pour accès à HOME ASSISTANT par ssh (abandonné)
+#             l'option est intégrée et configurée dans HA 
+#     192.168.0.21:/volume2/Volume_2/ALL_servers_SP3C_backups
+#----------------------------------------------------------------
+# Bonne nouvelle : HAOS a dd et ssh intégrés. Quelques spécificités à gérer.
+
+#   Étape 1 — Sur la console HAOS : ajouter ta clé SSH
+
+#   mkdir -p ~/.ssh
+#   echo "$(cat ~/.ssh/id_rsa.pub)" >> ~/.ssh/authorized_keys  # coller ta clé publique
+#   chmod 700 ~/.ssh
+#   chmod 600 ~/.ssh/authorized_keys
+
+#   Vérifie que ça persiste au reboot (overlay filesystem) — si non, on verra une alternative.
+
+#   Vérifie aussi ce qui est disponible :
+#   which dd gzip lz4 tmux sudo
+#   lsblk 
+  
+#   Colle la sortie — en particulier sudo et tmux qui sont probablement absents sur HAOS (pas de gestionnaire de paquets).
+
+#   ---
+#   Étape 2 — Adaptation du code : option no_sudo
+  
+#   HAOS se connecte en root directement — sudo n'est ni nécessaire ni forcément disponible. J'ajoute une option no_sudo par serveur dans config.yml :
+# Étape 3 — Vérifier depuis la console HAOS
+
+#   Lance ces commandes sur la console HAOS pour confirmer ce qui est disponible :
+
+#   lsblk
+#   which dd gzip lz4 tmux sudo
+
+#   Et pour tester l'accès SSH depuis ton PC une fois la clé ajoutée :
+#   ! ssh root@192.168.0.54 "lsblk"
+
+#   ---
+#   Ce que ça donnera selon les outils présents
+
+#   ┌──────────────────┬─────────────────────────────────────────┐
+#   │ Outil disponible │           Mode de sauvegarde            │
+#   ├──────────────────┼─────────────────────────────────────────┤
+#   │ dd + gzip        │ make backup (streaming PC) ✅           │
+#   ├──────────────────┼─────────────────────────────────────────┤
+#   │ + tmux           │ make tmux aussi ✅                      │
+#   ├──────────────────┼─────────────────────────────────────────┤
+#   │ + lz4            │ changer compressor: lz4 dans config.yml │
+#   └──────────────────┴─────────────────────────────────────────┘
+
+#   Mode tmux sur HAOS probablement impossible (pas de package manager pour installer tmux sur buildroot), mais make backup suffira — la sauvegarde stream via ton PC comme pour les autres.
+
+#   Colle la sortie de which dd gzip lz4 tmux sudo et lsblk et j'ajuste la config.
+
+
+
+#----------------------------------------------------------------
+#                INFO et EVOLUTION (?) SECURITE
+#----------------------------------------------------------------
+
+# Groupe docker = équivalent root sans mot de passe
+
+#   Ajouter un utilisateur au groupe docker lui donne un accès complet au socket Unix /var/run/docker.sock. Quiconque peut parler à ce socket peut :
+
+#   Escalade de privilèges triviale :
+#   # Monte le système de fichiers hôte entier dans un container
+#   docker run -v /:/host --rm -it alpine chroot /host
+#   # → shell root sur la machine hôte, sans sudo, sans mot de passe
+  
+#   C'est documenté par le projet Docker lui-même : le groupe docker est équivalent à root sur la machine hôte.
+
+#   Autres vecteurs :
+#   - Lire n'importe quel fichier hôte (/etc/shadow, clés SSH, secrets)
+#   - Modifier des fichiers système en montant /etc en volume
+#   - Lancer des containers --privileged avec accès aux devices kernel
+#   - Persister un accès même après rotation des mots de passe (via un container en arrière-plan)
+
+#   ---
+#   Dans ton contexte spécifique
+  
+#   Tes serveurs (Pi, Banana Pi, Orange Pi) sont sur un réseau local privé, avec accès SSH par clé uniquement. Le vrai risque dépend du modèle de menace :
+
+#   ┌──────────────────────────────────────────────────┬──────────────────────────────────────────────────────────┐
+#   │                     Scénario                     │                       Risque réel                        │
+#   ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+#   │ Réseau local fermé, pas d'accès internet entrant │ Faible — si quelqu'un a déjà la clé SSH, il a déjà accès │
+#   ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+#   │ dietpi est le seul utilisateur du serveur        │ Faible — pas d'autre utilisateur à protéger              │
+#   ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+#   │ Serveur exposé sur internet (même partiellement) │ Élevé                                                    │
+#   ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+#   │ Serveur exposé sur internet (même partiellement) │ Élevé                                                    │
+#   ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+#   │ Plusieurs utilisateurs sur la même machine       │ Élevé                                                    │
+#   └──────────────────────────────────────────────────┴──────────────────────────────────────────────────────────┘
+
+#   ---
+#   Alternatives plus sûres
+
+#   Option 1 — sudo docker avec règle ciblée (recommandé)
+
+#   Dans /etc/sudoers.d/docker-readonly sur chaque Pi :
+#   dietpi ALL=(ALL) NOPASSWD: /usr/bin/docker ps *
+#   dietpi ALL=(ALL) NOPASSWD: /usr/bin/docker stats *
+#   Limite sudo aux seules commandes ps et stats — pas run, pas exec.
+
+#   Option 2 — Socket en lecture seule via proxy (Docker Socket Proxy)
+
+#   Un container tecnativa/docker-socket-proxy expose une API Docker filtrée (lecture seule). Plus complexe à mettre en place.
+
+#   Option 3 — Garder le groupe docker (pragmatique)
+
+#   Acceptable sur un réseau domestique fermé où dietpi est de toute façon sudoer complet. C'est ce que font la plupart des setups homelab.
+
+#   ---
+#   Ma recommandation pour ton cas
+
+#   Ton dietpi a déjà NOPASSWD: /usr/bin/dd — il peut déjà écraser n'importe quel disque. Le groupe docker n'ajoute pas grand chose de pire dans ce contexte.
+
+#   Mais si tu veux faire propre, l'option sudoers avec docker ps * et docker stats * est simple et limite l'exposition. Je peux mettre à jour containers.py pour utiliser sudo docker ps et sudo docker stats systématiquement — il suffira
+#   d'ajouter ces deux lignes dans sudoers sur chaque Pi.
+
+# ✻ Sautéed for 23s
+
+# ❯ quand tu dis :"Ton dietpi a déjà NOPASSWD: /usr/bin/dd — il peut déjà écraser n'importe quel disque." y a t-il un manière de limiter l'action possible de dd de manière sure ?                                                            
+
+# ● Oui, mais c'est difficile à faire de manière vraiment sûre.
+
+#   Le problème avec dd
+
+#   dd est générique par nature — il lit et écrit n'importe quoi vers n'importe quoi. Limiter dd en sudoers à un chemin de device spécifique :
+
+#   dietpi ALL=(ALL) NOPASSWD: /usr/bin/dd if=/dev/mmcblk0 *
+
+#   ...n'est pas fiable. Un attaquant peut contourner en passant les arguments dans un ordre différent, avec des espaces, ou en exploitant d'autres subtilités de parsing de sudoers.
+
+#   Ce qui est réellement fiable
+
+#   Remplacer dd par un script wrapper dédié, appartenant à root, non modifiable par dietpi :
+
+#   #!/bin/bash
+#   # /usr/local/bin/backup-dd — seul ce script est dans sudoers
+#   exec dd if=/dev/mmcblk0 bs=4M "$@"
+
+#   Sudoers pointe uniquement sur ce script :
+#   dietpi ALL=(ALL) NOPASSWD: /usr/local/bin/backup-dd
+
+#   Ainsi if= est fixé côté root, et dietpi ne peut pas le modifier.
+
+#   La réalité pratique
+
+#   Sur un réseau domestique fermé avec un seul utilisateur, la menace réelle est faible. Le vrai risque de NOPASSWD: dd c'est surtout une erreur humaine (mauvais of=) plus qu'une attaque. Le wrapper wrapper protège aussi contre ça.
+
+# ❯ /btw quand tu dis :"Ton dietpi a déjà NOPASSWD: /usr/bin/dd — il peut déjà écraser n'importe quel disque." y a t-il un manière de limiter l'action possible de dd de manière sure ? 
+#   ⎿  Branched conversation "btw: quand tu dis :"Ton dietpi a déjà NOPASSWD: /usr/bin/dd — il peut déjà écra…". You are now in the new branch (session f4f7a4cd-e1b0-44d2-bb46-4fe4fe519a3e). Use /resume
+#      424d0068-0cc8-4c98-828f-9102b1d6148d to return to the original, or run claude -r 424d0068-0cc8-4c98-828f-9102b1d6148d in a new terminal.
+
+# ❯ mais mon réseau local est relié à internet                                                                                                                                                                                                
+
+# ● Ça change le modèle de menace de façon significative.
+
+#   La chaîne d'attaque réelle
+
+#   Tes serveurs font tourner des containers web (ports 80, 81, 443, 8015, 8016… visibles dans le ps aux). Si l'un d'eux est exposé sur internet via ton routeur :
+
+#   Internet → routeur (NAT/port forward) → container web vulnérable
+#   → shell dans le container → escape vers hôte
+#   → dietpi avec NOPASSWD dd → lecture/écriture disque entier
+
+#   L'escape de container n'est pas trivial, mais c'est une technique documentée, surtout si un container tourne avec des volumes montés vers l'hôte ou en mode --privileged.
+
+#   Ce qu'il faut faire
+
+#   Pour dd — le wrapper est la vraie solution :
+
+#   Sur chaque Pi, créer /usr/local/bin/backup-dd (root, non modifiable) :
+
+#   #!/bin/bash
+#   # Seul if= est autorisé, of= n'est pas un paramètre — la sortie va sur stdout
+#   exec /usr/bin/dd if=/dev/mmcblk0 bs=4M "$@"
+
+#   sudo chown root:root /usr/local/bin/backup-dd
+#   sudo chmod 755 /usr/local/bin/backup-dd
+
+#   Sudoers :
+#   dietpi ALL=(ALL) NOPASSWD: /usr/local/bin/backup-dd
+  
+#   Et supprimer la ligne NOPASSWD: /usr/bin/dd.
+
+#   Pour Docker — sudoers limité :
+
+#   dietpi ALL=(ALL) NOPASSWD: /usr/bin/docker ps *
+#   dietpi ALL=(ALL) NOPASSWD: /usr/bin/docker stats *
+
+#   Pas de groupe docker, pas de docker run, pas de docker exec.
+
+#   ---
+#   Pour le script de backup, il faudrait adapter server.py pour appeler sudo backup-dd au lieu de sudo dd if=.... Je peux faire ça si tu veux — c'est un changement localisé dans _build_dd_cmd().
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

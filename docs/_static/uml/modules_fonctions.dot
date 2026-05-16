@@ -35,6 +35,17 @@ digraph "sauvegardes_serveurs" {
         _ssh_cmd           [label="{_ssh_cmd(server, remote_cmd)|Construit argv SSH\l→ list[str]}", fillcolor="#a9dfbf"]
     }
 
+    subgraph cluster_containers {
+        label="containers.py"
+        fontname="Helvetica Bold"
+        fontsize=12
+        style="filled"
+        color="#d35400"
+        fillcolor="#fdebd0"
+
+        docker_status_server [label="{docker_status_server(server)|docker ps + docker stats\lCPU / RAM / NET ↓↑\l→ dict}", fillcolor="#f5cba7"]
+    }
+
     subgraph cluster_storage {
         label="storage.py"
         fontname="Helvetica Bold"
@@ -59,7 +70,7 @@ digraph "sauvegardes_serveurs" {
         ssh    [label="{ssh|OpenSSH client}", shape=parallelogram, fillcolor="#f2f3f4"]
         dd_pc  [label="{dd | lz4/gzip (mode PC)|Stream via SSH stdout\nPC → NAS}", shape=parallelogram, fillcolor="#f2f3f4"]
         tmux   [label="{tmux (mode Pi)|Session persistante\ndd | lz4/gzip > NAS}", shape=parallelogram, fillcolor="#e8f8f5"]
-        nas    [label="{NAS|.img.lz4 / .img.gz\n+ .done + .ddlog}", shape=cylinder, fillcolor="#fdfefe"]
+        nas    [label="{NAS|.img.lz4 / .img.gz\n+ .done + .ddlog\n+ docker_{ts}.md}", shape=cylinder, fillcolor="#fdfefe"]
         yaml   [label="{config.yml|Paramètres serveurs\net rétention}", shape=note, fillcolor="#fef9e7"]
     }
 
@@ -74,20 +85,23 @@ digraph "sauvegardes_serveurs" {
     main -> start_backup_tmux  [label="4b. --tmux"]
     main -> tmux_status        [label="--status"]
     main -> cleanup            [label="5. rotation"]
-    main -> list_backups       [label="--list"]
+    main -> list_backups          [label="--list"]
+    main -> docker_status_server  [label="--docker"]
 
     backup_server     -> _ssh_cmd [label="construit cmd"]
     check_server      -> _ssh_cmd [label="construit cmd"]
     start_backup_tmux -> _ssh_cmd [label="construit cmd"]
     tmux_status       -> _ssh_cmd [label="construit cmd"]
-    speed_test_server -> _ssh_cmd [label="construit cmd"]
+    speed_test_server    -> _ssh_cmd [label="construit cmd"]
+    docker_status_server -> _ssh_cmd [label="construit cmd"]
 
     // ── Appels externes ──────────────────────────────────────────────
-    load_config       -> yaml   [style=dashed, arrowhead=open, label="parse"]
-    _ssh_cmd          -> ssh    [style=dashed, arrowhead=open, label="subprocess"]
-    backup_server     -> dd_pc  [style=dashed, arrowhead=open, label="remote pipe"]
-    dd_pc             -> nas    [style=dashed, arrowhead=open, label="stream"]
-    start_backup_tmux -> tmux   [style=dashed, arrowhead=open, label="new-session"]
-    tmux              -> nas    [style=dashed, arrowhead=open, label="écrit direct"]
-    cleanup           -> nas    [style=dashed, arrowhead=open, label="unlink anciens"]
+    load_config          -> yaml   [style=dashed, arrowhead=open, label="parse"]
+    _ssh_cmd             -> ssh    [style=dashed, arrowhead=open, label="subprocess"]
+    backup_server        -> dd_pc  [style=dashed, arrowhead=open, label="remote pipe"]
+    dd_pc                -> nas    [style=dashed, arrowhead=open, label="stream"]
+    start_backup_tmux    -> tmux   [style=dashed, arrowhead=open, label="new-session"]
+    tmux                 -> nas    [style=dashed, arrowhead=open, label="écrit direct"]
+    cleanup              -> nas    [style=dashed, arrowhead=open, label="unlink anciens"]
+    docker_status_server -> nas    [style=dashed, arrowhead=open, label="docker_{ts}.md"]
 }

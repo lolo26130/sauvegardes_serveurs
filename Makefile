@@ -8,7 +8,7 @@ CYAN   := \033[1;36m
 GRAY   := \033[0;37m
 SEP    := $(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)
 
-.PHONY: check backup tmux status list speed docs uml help
+.PHONY: check backup tmux status list speed docker docs uml help
 
 help:
 	@printf "\n$(SEP)\n"
@@ -22,6 +22,7 @@ help:
 	@printf "  $(GREEN)%-38s$(RESET) %s\n" "make status"                     "État des sessions tmux en cours"
 	@printf "  $(GREEN)%-38s$(RESET) %s\n" "make list"                       "Lister les sauvegardes existantes sur le NAS"
 	@printf "  $(GREEN)%-38s$(RESET) %s\n" "make speed"                      "Mesurer les débits SSH + NAS et estimer la durée"
+	@printf "  $(GREEN)%-38s$(RESET) %s\n" "make docker"                     "Lister les containers Docker actifs (CPU / RAM / trafic)"
 	@printf "\n"
 	@printf "  $(YELLOW)DOCUMENTATION$(RESET)\n"
 	@printf "  $(GREEN)%-38s$(RESET) %s\n" "make docs"  "Regénérer la doc HTML Sphinx"
@@ -69,6 +70,9 @@ list:
 
 speed:
 	uv run backup.py --speed-test
+
+docker:
+	uv run backup.py --docker
 
 docs:
 	uvx --with sphinx-rtd-theme --with sphinx-autodoc-typehints --with pyyaml \
