@@ -12,11 +12,17 @@ servers:
     device: /dev/mmcblk0               # Carte SD 14.8GB (disque entier : table de partitions + boot + rootfs)
     compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
 
-  - name: raspberry-pi4
+  - name: raspberry-pi4              # en réalité le Banana Pi BPI-M5 (nom gardé pour l'historique des sauvegardes)
     ip: 192.168.0.53
     user: dietpi
-    device: /dev/mmcblk0             # Carte SD
+    device: /dev/mmcblk0             # carte SD de DONNÉES 476.7G (/mnt/carteSD, volumes Docker) — PAS le système
     compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+
+  - name: bananapi-m5                # même machine (192.168.0.53) : son disque SYSTÈME
+    ip: 192.168.0.53
+    user: dietpi
+    device: /dev/mmcblk1             # eMMC 14.6G : / (armbi_root sur mmcblk1p1) + u-boot en début de disque
+    compressor: lz4                  # vérifier mmcblk0/mmcblk1 avec « giom_bkp check » si le matériel change
 
   # - name: banana-pi   # l'option est intégrée et configurée dans HA 
   #   ip: 192.168.0.54
