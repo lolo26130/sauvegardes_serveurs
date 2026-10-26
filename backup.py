@@ -146,13 +146,17 @@ Exemples:
 
         for server in servers:
             s = tmux_status(server, remote_nas)
-            if s["done"]:
-                verdict = "OK" if s["exit_code"] == 0 else f"ERREUR (code {s['exit_code']})"
-                msg = f"Terminé — {verdict}  {s['latest']}"
-                icon = "✅" if s["exit_code"] == 0 else "❌"
+            # ordre : occupé, puis en cours (prime sur un .done), puis terminé
+            if s.get("busy"):
+                msg = f"Occupé  {s['latest']}"
+                icon = "⏳"
             elif s["running"]:
                 msg = f"En cours…  {s['latest']}"
                 icon = "🔄"
+            elif s["done"]:
+                verdict = "OK" if s["exit_code"] == 0 else f"ERREUR (code {s['exit_code']})"
+                msg = f"Terminé — {verdict}  {s['latest']}"
+                icon = "✅" if s["exit_code"] == 0 else "❌"
             else:
                 msg = "Aucune session active"
                 icon = "⏹"

@@ -235,31 +235,38 @@ def tmux_status(server: dict, remote_nas: str) -> dict:
     name = server["name"]
     session = _tmux_session_name(server)
     remote_dir = f"{remote_nas}/{name}"
+    # Pendant une sauvegarde, un petit Pi (ex. Pi 2) peut mettre plus de 10 s à lister le NAS :
+    # délai large, et un dépassement est signalé (busy) au lieu de faire planter --status.
+    timeout = 30
 
-    # Session toujours active ?
-    r = subprocess.run(
-        _ssh_cmd(server, f"tmux has-session -t {session} 2>/dev/null"),
-        capture_output=True, timeout=10,
-    )
-    running = r.returncode == 0
+    try:
+        # Session toujours active ?
+        r = subprocess.run(
+            _ssh_cmd(server, f"tmux has-session -t {session} 2>/dev/null"),
+            capture_output=True, timeout=timeout,
+        )
+        running = r.returncode == 0
 
-    # Fichier .done présent ?
-    r2 = subprocess.run(
-        _ssh_cmd(server, f"cat {remote_dir}/*.done 2>/dev/null || true"),
-        capture_output=True, text=True, timeout=10,
-    )
-    done_content = r2.stdout.strip()
-    done = bool(done_content)
+        # Dernière image + SON fichier .done (pas ceux des sauvegardes précédentes)
+        r2 = subprocess.run(
+            _ssh_cmd(server, f'f=$(ls -t {remote_dir}/*.img.* 2>/dev/null | head -1); '
+                             f'[ -n "$f" ] && {{ ls -lh "$f"; d="${{f%.img.*}}.done"; '
+                             f'[ -f "$d" ] && echo "DONE:$(cat "$d")"; }}; true'),
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {"name": name, "running": None, "done": False, "exit_code": None, "busy": True,
+                "latest": f"(pas de réponse en {timeout} s : Pi trop occupé par la sauvegarde, réessayer)"}
+
+    lines = r2.stdout.strip().splitlines()
+    done_line = next((l for l in lines if l.startswith("DONE:")), "")
+    latest = next((l for l in lines if not l.startswith("DONE:")), "")
+    done_content = done_line.removeprefix("DONE:").strip()
+    done = bool(done_line)
     exit_code = int(done_content) if done_content.isdigit() else None
 
-    # Taille du dernier fichier image en cours
-    r3 = subprocess.run(
-        _ssh_cmd(server, f"ls -lh {remote_dir}/*.img.* 2>/dev/null | tail -1 || true"),
-        capture_output=True, text=True, timeout=10,
-    )
-    latest = r3.stdout.strip()
-
-    return {"name": name, "running": running, "done": done, "exit_code": exit_code, "latest": latest}
+    return {"name": name, "running": running, "done": done, "exit_code": exit_code, "busy": False,
+            "latest": latest}
 
 
 def backup_server(server: dict, nas_path: Path, dry_run=False) -> Path | None:
