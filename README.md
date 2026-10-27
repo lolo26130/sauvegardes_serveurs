@@ -76,15 +76,17 @@ retention:
   keep: 3          # sauvegardes conservées par serveur
 
 servers:
-  - name: raspberry-pi4
+  # nom : <machine>_<fonction>_<support>-<rôle>, support = emmc (soudée) | sdcard (carte SD)
+  - name: bananapi-m5_docker-vaultwarden-medias_emmc-systeme
     ip: 192.168.0.53
     user: dietpi
-    device: /dev/mmcblk0    # confirmer avec : make check
+    device: /dev/disk/by-id/mmc-AJTD4R_0x1da55933  # chemin stable (ls -l /dev/disk/by-id/ sur le Pi)
+    support: emmc           # contrôlé par make check (MMC = eMMC, SD = carte SD)
     compressor: lz4         # ou gzip si lz4 absent
 ```
 
-> **Orange Pi 5** : le device eMMC peut être `/dev/mmcblk0` ou `/dev/mmcblk1`.
-> Toujours vérifier avec `make check` avant la première sauvegarde.
+> `mmcblk0` / `mmcblk1` peuvent s'inverser (ajout/retrait d'une carte) : utiliser le chemin stable
+> `/dev/disk/by-id/mmc-…` et le champ `support`, vérifiés par `make check` avant chaque sauvegarde.
 
 Options par serveur :
 - `compressor: lz4` — compression ~10× plus rapide que gzip (ratio légèrement inférieur)
@@ -99,7 +101,7 @@ Options par serveur :
 make check                      # Tester la connexion SSH à tous les serveurs
 make backup                     # Sauvegarder tous les serveurs (streaming via PC)
 make tmux                       # Lancer sur tous les serveurs via tmux (résistant aux coupures)
-make tmux SERVER=raspberry-pi4  # Lancer un seul serveur via tmux
+make tmux SERVER=bananapi-m5_docker-vaultwarden-medias_emmc-systeme  # Lancer un seul serveur via tmux
 make status                     # État des sessions tmux en cours
 make list                       # Lister les sauvegardes existantes sur le NAS
 make speed                      # Mesurer les débits SSH + NAS et estimer la durée
@@ -110,7 +112,7 @@ Sans `make` (équivalents directs) :
 
 ```bash
 uv run backup.py --check
-uv run backup.py --tmux --server raspberry-pi4
+uv run backup.py --tmux --server bananapi-m5_docker-vaultwarden-medias_emmc-systeme
 uv run backup.py --status
 uv run backup.py --dry-run       # Simuler sans rien écrire
 ```
@@ -129,7 +131,7 @@ Le mode tmux est recommandé pour les grosses eMMC (Orange Pi 5, 233 GB).
 ```bash
 make status
 # ou directement sur le Pi :
-ssh -t dietpi@192.168.0.53 '/usr/bin/tmux attach -t bkp_raspberry-pi4'
+ssh -t dietpi@192.168.0.53 '/usr/bin/tmux attach -t bkp_bananapi-m5_docker-vaultwarden-medias_emmc-systeme'
 ```
 
 ---
@@ -155,9 +157,9 @@ Produit un rapport `docker_YYYYMMDD_HHMMSS.md` sur le NAS.
 lsblk
 
 # Décompresser et écrire (remplacer /dev/sdX)
-unlz4 raspberry-pi4_20260514.img.lz4 | sudo dd of=/dev/sdX bs=4M status=progress
+unlz4 bananapi-m5_docker-vaultwarden-medias_emmc-systeme_20261027.img.lz4 | sudo dd of=/dev/sdX bs=4M status=progress
 # ou pour .img.gz :
-gunzip -c raspberry-pi4_20260514.img.gz  | sudo dd of=/dev/sdX bs=4M status=progress
+gunzip -c bananapi-m5_docker-vaultwarden-medias_emmc-systeme_20261027.img.gz  | sudo dd of=/dev/sdX bs=4M status=progress
 ```
 
 > ⚠ Vérifier `/dev/sdX` deux fois — `dd` écrase sans confirmation.

@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from containers import docker_status_server
-from server import backup_server, check_server, speed_test_server, start_backup_tmux, tmux_status
+from server import backup_server, check_server, check_support, speed_test_server, start_backup_tmux, tmux_status
 from storage import check_nas, cleanup_old_backups, list_backups, speed_test_nas
 
 
@@ -63,7 +63,7 @@ def main() -> int:
         epilog="""
 Exemples:
   make backup                              # Sauvegarder tous les serveurs
-  make tmux SERVER=raspberry-pi4           # Sauvegarde tmux un seul serveur
+  make tmux SERVER=bananapi-m5_docker-vaultwarden-medias_emmc-systeme           # Sauvegarde tmux un seul serveur
   make check                              # Vérifier la connectivité SSH
   make status                             # État des sessions tmux
   make list                               # Lister les sauvegardes existantes
@@ -266,6 +266,8 @@ Exemples:
             return 1
         success = 0
         for server in servers:
+            if not check_support(server):  # garde-fou : disque = type annoncé (emmc / sdcard), sinon sauté
+                continue
             session = start_backup_tmux(server, remote_nas, dry_run=args.dry_run)
             if session:
                 success += 1
@@ -289,6 +291,8 @@ Exemples:
         log.info(f"{'='*60}")
         log.info(f"Serveur: {server['name']} ({server['ip']})")
         log.info(f"{'='*60}")
+        if not check_support(server):  # garde-fou : disque = type annoncé (emmc / sdcard), sinon sauté
+            continue
         try:
             backup_path = backup_server(server, nas_path, dry_run=args.dry_run)
             if backup_path:

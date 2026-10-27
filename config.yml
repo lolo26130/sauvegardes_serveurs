@@ -6,43 +6,49 @@ retention:
   keep: 3                                # Nombre de sauvegardes conservées par serveur
 
 servers:
-  - name: DietPiHole
+  # Nommage (2026-10-27) : <machine>_<fonction>_<support>-<rôle>   (« _ » sépare les champs, « - » relie les mots)
+  #   support : emmc (puce soudée) | sdcard (carte SD amovible) — le nom = le dossier et le fichier sur le NAS.
+  # device  : chemin STABLE /dev/disk/by-id/mmc-<modèle>_<n° de série> : il désigne toujours la même puce,
+  #           alors que mmcblk0 / mmcblk1 peuvent s'inverser (ajout/retrait d'une carte). « = mmcblkN » : pour info.
+  # support : contrôlé par « giom_bkp check » (/sys/block/<disque>/device/type : MMC = eMMC, SD = carte SD).
+
+  - name: rpi2_pihole-dns_sdcard-systeme        # Raspberry Pi 2 Model B « DietPiHole » : Pi-hole + Unbound (DNS du réseau)
     ip: 192.168.0.202
     user: dietpi
-    device: /dev/mmcblk0               # Carte SD 14.8GB (disque entier : table de partitions + boot + rootfs)
+    device: /dev/disk/by-id/mmc-SC16G_0xd2709ce5      # carte SD 16 Go (= mmcblk0) : système complet
+    support: sdcard
     compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
 
-  - name: raspberry-pi4              # en réalité le Banana Pi BPI-M5 (nom gardé pour l'historique des sauvegardes)
+  - name: bananapi-m5_docker-vaultwarden-medias_emmc-systeme              # Banana Pi BPI-M5 « BananaDietPi » : Docker (Vaultwarden, Nginx Proxy Manager, Portainer, Sonarr/Radarr/Lidarr/Bazarr/Prowlarr/Jellyseerr, qBittorrent+VPN, Homarr, Linkstack, Gotify)
     ip: 192.168.0.53
     user: dietpi
-    device: /dev/mmcblk0             # carte SD de DONNÉES 476.7G (/mnt/carteSD, volumes Docker) — PAS le système
-    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+    device: /dev/disk/by-id/mmc-AJTD4R_0x1da55933     # eMMC 16 Go soudée (= mmcblk1) : système + u-boot
+    support: emmc
+    compressor: lz4
 
-  - name: bananapi-m5                # même machine (192.168.0.53) : son disque SYSTÈME
+  - name: bananapi-m5_docker-vaultwarden-medias_sdcard-donnees            # Banana Pi BPI-M5 « BananaDietPi » (même machine)
     ip: 192.168.0.53
     user: dietpi
-    device: /dev/mmcblk1             # eMMC 14.6G : / (armbi_root sur mmcblk1p1) + u-boot en début de disque
-    compressor: lz4                  # vérifier mmcblk0/mmcblk1 avec « giom_bkp check » si le matériel change
+    device: /dev/disk/by-id/mmc-SC512_0x4bb52790      # carte SD 512 Go (= mmcblk0, /mnt/carteSD) : données, volumes Docker
+    support: sdcard
+    compressor: lz4
 
-  # - name: banana-pi   # l'option est intégrée et configurée dans HA 
+  # Raspberry Pi 4 sous Home Assistant OS : sauvegarde gérée par HA lui-même (pas par ce script)
+  # - name: rpi4_home-assistant_sdcard-systeme
   #   ip: 192.168.0.54
-  #   user: root        # seul user on HA !
-  #   device: /dev/mmcblk0             # Carte SD
-  #   compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
-
-  # - name: homeassistant
-  #   ip: 192.168.0.54                 # Raspberry Pi 4 sous HAOS — ajuster si IP différente
   #   user: root                       # HAOS : connexion directe en root
   #   no_sudo: true                    # dd sans sudo (déjà root)
-  #   device: /dev/mmcblk0             # SD card — confirmer avec lsblk sur console HAOS
+  #   device: /dev/mmcblk0             # SD card — remplacer par /dev/disk/by-id/... (lsblk sur console HAOS)
+  #   support: sdcard
   #   compressor: gzip                 # lz4 absent sur HAOS (buildroot sans apt)
 
 #----------------------------------------------------------------
-  - name: orange-pi5
+  - name: orangepi-5plus_nextcloud-applis_emmc-systeme           # Orange Pi 5 Plus « OrangeDietPi » : Nextcloud + MariaDB, applis données (isere, velotaff, transport, entrees-box-office, PostgreSQL), Samba
     ip: 192.168.0.55
     user: dietpi
-    device: /dev/mmcblk0             # eMMC 233GB (seul disque, pas de carte SD)
-    compressor: lz4                  # lz4 ~10x plus rapide que gzip (apt install lz4)
+    device: /dev/disk/by-id/mmc-A3A564_0x1ba642d1     # eMMC 256 Go (= mmcblk0) : système (seul disque)
+    support: emmc
+    compressor: lz4
 #   pour info :
 #  mtdblock0       16M   → flash SPI (bootloader bas niveau, ignorer)
 #   mmcblk0        233G   → eMMC soudée = LE disque de boot

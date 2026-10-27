@@ -66,6 +66,45 @@ def check_server(server: dict) -> bool:
             log.error(f"[{name}] Connexion échouée: {result.stderr.strip()}")
             return False
         log.info(f"[{name}] Connecté. Périphériques:\n{result.stdout}")
+        return check_support(server)
+    except subprocess.TimeoutExpired:
+        log.error(f"[{name}] Timeout connexion SSH")
+        return False
+
+
+# Type noyau (/sys/block/<disque>/device/type) attendu pour chaque valeur de « support »
+SUPPORT_TYPES = {"emmc": "MMC", "sdcard": "SD"}
+
+
+def check_support(server: dict) -> bool:
+    """Garde-fou : le disque configuré existe et est bien du type annoncé (eMMC ou carte SD).
+
+    Évite de sauvegarder un disque sous le mauvais nom (ex. une carte SD de données nommée comme le système).
+    Sans champ ``support`` dans la configuration, le contrôle est sauté.
+
+    :param server: Dictionnaire de configuration du serveur (``device``, ``support`` optionnel).
+    :returns: ``True`` si le disque correspond (ou si ``support`` est absent), ``False`` sinon.
+    """
+    name, device = server["name"], server["device"]
+    support = server.get("support")
+    if not support:
+        return True
+    try:
+        r = subprocess.run(
+            _ssh_cmd(server, f'd=$(readlink -f {device}) && [ -b "$d" ] && '
+                             f'echo "$d $(cat /sys/block/$(basename $d)/device/type 2>/dev/null)"'),
+            capture_output=True, text=True, timeout=15,
+        )
+        reel, _, type_noyau = r.stdout.strip().partition(" ")
+        attendu = SUPPORT_TYPES.get(support)
+        if r.returncode != 0 or not reel:
+            log.error(f"[{name}] Disque introuvable : {device}")
+            return False
+        if type_noyau != attendu:
+            log.error(f"[{name}] {device} ({reel}) est de type « {type_noyau or '?'} », "
+                      f"attendu « {attendu} » pour support: {support} — vérifier config.yml")
+            return False
+        log.info(f"[{name}] Disque vérifié : {device} = {reel} ({support})")
         return True
     except subprocess.TimeoutExpired:
         log.error(f"[{name}] Timeout connexion SSH")

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python script that images the SD card / eMMC of SBC servers (Raspberry Pi 4, Banana Pi, Orange Pi 5) on a local network via SSH+dd, and stores compressed `.img.gz` files on a NAS. Images can be written back with `dd` or `balenaEtcher`.
 
-Target servers: 192.168.0.53, 192.168.0.54, 192.168.0.55
+Target servers (config.yml): 192.168.0.202 (Raspberry Pi 2, SD), 192.168.0.53 (Banana Pi BPI-M5: eMMC system + SD data), 192.168.0.55 (Orange Pi 5 Plus, eMMC). 192.168.0.54 = Raspberry Pi 4 HAOS (backed up by HA itself). Names follow <machine>_<function>_<support>-<role>; devices use /dev/disk/by-id paths + `support` (emmc|sdcard) checked by `--check`.
 
 ## Commands
 
@@ -21,7 +21,7 @@ python backup.py --check
 python backup.py
 
 # Run backup for one server
-python backup.py --server raspberry-pi4
+python backup.py --server bananapi-m5_docker-vaultwarden-medias_emmc-systeme
 
 # Simulate without writing
 python backup.py --dry-run
