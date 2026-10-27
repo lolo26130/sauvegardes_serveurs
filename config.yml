@@ -5,6 +5,14 @@ nas:
 retention:
   keep: 3                                # Nombre de sauvegardes conservées par serveur
 
+# Sauvegardes faites par d'autres outils, rangées sur le même NAS : seulement AFFICHÉES par « make list »
+# (jamais modifiées ni nettoyées par ce script). dossier : relatif à nas.path ; alerte_jours : avertir si trop ancienne.
+externes:
+  - name: rpi4_home-assistant_sauvegardes-ha   # Raspberry Pi 4 (.54) : sauvegardes automatiques de Home Assistant
+    dossier: HomeAssistant
+    motifs: ["*.tar"]                          # le kit d'urgence (clé de chiffrement) n'est pas listé exprès
+    alerte_jours: 10                           # HA sauvegarde chaque semaine : > 10 jours = problème
+
 servers:
   # Nommage (2026-10-27) : <machine>_<fonction>_<support>-<rôle>   (« _ » sépare les champs, « - » relie les mots)
   #   support : emmc (puce soudée) | sdcard (carte SD amovible) — le nom = le dossier et le fichier sur le NAS.

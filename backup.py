@@ -97,7 +97,7 @@ Exemples:
             return 1
 
     if args.list:
-        list_backups(nas_path, servers)
+        list_backups(nas_path, servers, config.get("externes", []))
         return 0
 
     if args.check:

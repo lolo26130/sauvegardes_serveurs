@@ -89,14 +89,22 @@ def speed_test_nas(nas_path: Path, size_mb: int = 256) -> float | None:
         test_file.unlink(missing_ok=True)
 
 
-def list_backups(nas_path: Path, servers: list[dict]):
+def _taille(octets: int) -> str:
+    """Taille lisible : en GB à partir de 1 GB, sinon en MB."""
+    return f"{octets / 1024 ** 3:.1f} GB" if octets >= 1024 ** 3 else f"{octets / 1024 ** 2:.0f} MB"
+
+
+def list_backups(nas_path: Path, servers: list[dict], externes: list[dict] | None = None):
     """Affiche l'inventaire des sauvegardes existantes sur le NAS.
 
     Pour chaque serveur, liste les fichiers ``.img.gz`` triés du plus récent
     au plus ancien, avec leur taille et leur date de création.
+    Puis, pour chaque entrée ``externes`` de la configuration (sauvegardes faites par d'autres outils,
+    ex. Home Assistant), liste les fichiers correspondant à ses ``motifs`` — en lecture seule.
 
     :param nas_path: Chemin du répertoire racine sur le NAS.
     :param servers: Liste de dictionnaires de configuration des serveurs.
+    :param externes: Entrées ``name`` / ``dossier`` (relatif à ``nas_path``) / ``motifs`` / ``alerte_jours`` optionnel.
     """
     print(f"\nSauvegardes dans {nas_path}:\n")
     for server in servers:
@@ -116,4 +124,28 @@ def list_backups(nas_path: Path, servers: list[dict]):
             from datetime import datetime
             mtime = datetime.fromtimestamp(b.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
             print(f"    {mtime}  {b.name}  ({size_gb:.1f} GB)")
+
+    if externes:
+        from datetime import datetime
+        print("\n  Sauvegardes externes (faites par d'autres outils — affichées seulement, jamais modifiées ici) :\n")
+        for ext in externes:
+            ext_dir = nas_path / ext["dossier"]
+            fichiers = sorted(
+                {f for motif in ext.get("motifs", ["*"]) for f in ext_dir.glob(motif) if f.is_file()},
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if not fichiers:
+                print(f"  {ext['name']}: aucune sauvegarde dans {ext_dir}")
+                continue
+            total = sum(f.stat().st_size for f in fichiers)
+            age = (time.time() - fichiers[0].stat().st_mtime) / 86400
+            alerte = ""
+            if (seuil := ext.get("alerte_jours")) and age > seuil:
+                alerte = f"  ⚠ dernière il y a {age:.0f} jours (> {seuil})"
+            print(f"  {ext['name']}: {len(fichiers)} sauvegarde(s) — {_taille(total)} total, "
+                  f"dernière il y a {age:.0f} jour(s){alerte}")
+            for f in fichiers:
+                mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                print(f"    {mtime}  {f.name}  ({_taille(f.stat().st_size)})")
     print()
